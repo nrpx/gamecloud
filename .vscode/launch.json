@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Backend",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/main.go",
+      "cwd": "${workspaceFolder}/backend",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["run"],
+      "env": {
+        "PORT": "8080",
+        "GIN_MODE": "debug"
+      },
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Debug Frontend",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["dev"],
+      "env": {
+        "PORT": "3001"
+      },
+      "console": "integratedTerminal",
+      "restart": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Launch Full Stack",
+      "configurations": ["Debug Backend", "Debug Frontend"],
+      "stopAll": true
+    }
+  ]
+}

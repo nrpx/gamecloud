@@ -1,0 +1,41 @@
+{
+  "folders": [
+    {
+      "name": "GameCloud Root",
+      "path": "."
+    },
+    {
+      "name": "Backend",
+      "path": "./backend"
+    },
+    {
+      "name": "Frontend",
+      "path": "./frontend"
+    }
+  ],
+  "settings": {
+    "go.gopath": "/home/apelipas/go",
+    "go.goroot": "/home/apelipas/.asdf/installs/golang/1.21.5/go",
+    "go.toolsManagement.autoUpdate": true,
+    "typescript.preferences.includePackageJsonAutoImports": "auto",
+    "eslint.workingDirectories": ["frontend"],
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    },
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/.next": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "golang.go",
+      "ms-vscode.vscode-typescript-next",
+      "esbenp.prettier-vscode",
+      "dbaeumer.vscode-eslint",
+      "bradlc.vscode-tailwindcss"
+    ]
+  }
+}

@@ -1,0 +1,213 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Backend",
+      "type": "shell",
+      "command": "go",
+      "args": ["build", "-o", "gamecloud", "main.go"],
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": ["$go"]
+    },
+    {
+      "label": "Run Backend",
+      "type": "shell",
+      "command": "go",
+      "args": ["run", "main.go"],
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "env": {
+          "PORT": "8080",
+          "GIN_MODE": "debug",
+          "AUTH_SECRET": "super-secret-key-for-gamecloud-development-only-2024"
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": ["$go"],
+      "isBackground": true,
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
+      "label": "Install Frontend Dependencies",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv) && source /home/linuxbrew/.linuxbrew/opt/asdf/libexec/asdf.sh && yarn install"],
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Build Frontend",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv) && source /home/linuxbrew/.linuxbrew/opt/asdf/libexec/asdf.sh && yarn build"],
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "dependsOn": "Install Frontend Dependencies"
+    },
+    {
+      "label": "Run Frontend Dev",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv) && source /home/linuxbrew/.linuxbrew/opt/asdf/libexec/asdf.sh && yarn dev"],
+      "options": {
+        "cwd": "${workspaceFolder}/frontend",
+        "env": {
+          "PORT": "3001"
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
+      "label": "Prisma DB Push",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv) && source /home/linuxbrew/.linuxbrew/opt/asdf/libexec/asdf.sh && yarn db:push"],
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Prisma DB Seed",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv) && source /home/linuxbrew/.linuxbrew/opt/asdf/libexec/asdf.sh && yarn db:seed"],
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Prisma Studio",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv) && source /home/linuxbrew/.linuxbrew/opt/asdf/libexec/asdf.sh && yarn db:studio"],
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true
+    },
+    {
+      "label": "Start Full Stack",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Run Backend",
+        "Run Frontend Dev"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    }
+  ]
+}

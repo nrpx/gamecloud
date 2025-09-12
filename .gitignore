@@ -1,0 +1,207 @@
+# Environment variables - содержат секреты и API ключи
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# MCP configuration - может содержать API токены
+mcp.json
+.vscode/mcp.json
+
+# Базы данных - содержат пользовательские данные
+*.db
+*.sqlite
+*.sqlite3
+backend/gamecloud.db
+backend/downloads/.torrent.db
+frontend/prisma/dev.db
+
+# Логи - могут содержать чувствительную информацию
+*.log
+logs/
+*.log.*
+
+# Dependencies
+node_modules/
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Production builds
+.next/
+out/
+build/
+dist/
+
+# Runtime data
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel
+.vercel
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Temporary folders
+tmp/
+temp/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Backend specific
+backend/gamecloud
+backend/gamecloud-backend
+backend/downloads/
+*.db
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Go build artifacts
+backend/gamecloud
+backend/gamecloud-backend
+backend/main
+backend/dist/
+backend/build/
+
+# Downloads directory - содержит загруженные файлы
+backend/downloads/
+!backend/downloads/.gitkeep
+
+# SSL/TLS certificates
+*.pem
+*.key
+*.crt
+*.cert
+certificates/
+
+# Backup files
+*.backup
+*.bak
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Test files that might contain sensitive data
+test-results/
+test-reports/
+
+# Go vendor directory
+vendor/
+
+# Go test binary, built with `go test -c`
+*.test
+
+# Go coverage files
+*.out
+*.cover
+
+# Delve debugger
+__debug_bin
+
+# Air (hot reload for Go)
+tmp/
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Prisma
+frontend/prisma/dev.db*
+
+# Local development
+.env.local
