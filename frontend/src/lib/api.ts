@@ -62,6 +62,20 @@ export interface Statistics {
   total_upload_size: number
 }
 
+export interface UserSettings {
+  id: string
+  user_id: string
+  download_path: string
+  max_downloads: number
+  upload_limit: number
+  auto_start: boolean
+  notifications: boolean
+  theme: 'system' | 'light' | 'dark'
+  language: 'ru' | 'en'
+  created_at: string
+  updated_at: string
+}
+
 // Получение JWT токена из сессии
 async function getAuthToken(): Promise<string | null> {
   const session = await getSession()
@@ -223,6 +237,20 @@ export const statsApi = {
   // Получить статистику пользователя
   getUserStats: (): Promise<Statistics> =>
     apiRequest<Statistics>('/api/v1/stats'),
+}
+
+// API функции для настроек
+export const settingsApi = {
+  // Получить настройки пользователя
+  getSettings: (): Promise<UserSettings> =>
+    apiRequest<UserSettings>('/api/v1/settings'),
+  
+  // Обновить настройки пользователя
+  updateSettings: (settings: Partial<UserSettings>): Promise<UserSettings> =>
+    apiRequest<UserSettings>('/api/v1/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    }),
 }
 
 // Комбинированные функции

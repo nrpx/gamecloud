@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Icon } from '@/components/ui/Icon'
 import { 
   Box, 
   Flex, 
@@ -12,87 +14,67 @@ import {
   HStack,
   Input,
   Grid,
-  Badge
+  Badge,
+  Spinner
 } from '@chakra-ui/react'
-
-// Временные данные для демонстрации
-const mockGames = [
-  {
-    id: 1,
-    title: 'Cyberpunk 2077',
-    description: 'Футуристическая RPG в открытом мире',
-    size: '70 GB',
-    seeders: 245,
-    leechers: 12,
-    category: 'RPG'
-  },
-  {
-    id: 2,
-    title: 'The Witcher 3: Wild Hunt',
-    description: 'Эпическая фэнтези RPG от CD Projekt RED',
-    size: '35 GB',
-    seeders: 180,
-    leechers: 8,
-    category: 'RPG'
-  },
-  {
-    id: 3,
-    title: 'Red Dead Redemption 2',
-    description: 'Приключения на Диком Западе',
-    size: '120 GB',
-    seeders: 320,
-    leechers: 25,
-    category: 'Action'
-  }
-]
+import { AppHeader } from '@/components/ui/AppHeader'
+import { searchApi, Game } from '@/lib/api'
 
 export default function SearchPage() {
+  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
-  const [filteredGames, setFilteredGames] = useState(mockGames)
+  const [searchResults, setSearchResults] = useState<Game[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSearch = async () => {
-    setIsSearching(true)
-    
-    // Имитация поиска
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    if (searchQuery.trim()) {
-      const filtered = mockGames.filter(game =>
-        game.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        game.description.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-      setFilteredGames(filtered)
-    } else {
-      setFilteredGames(mockGames)
+  // Обрабатываем параметр поиска из URL
+  useEffect(() => {
+    const query = searchParams.get('q')
+    if (query) {
+      setSearchQuery(query)
+      performSearch(query)
     }
+  }, [searchParams])
+
+  const performSearch = async (query: string) => {
+    if (!query.trim()) return
     
-    setIsSearching(false)
+    setIsSearching(true)
+    setError(null)
+    setHasSearched(true)
+    
+    try {
+      const results = await searchApi.searchGames(query)
+      setSearchResults(results)
+    } catch (err) {
+      console.error('Ошибка поиска:', err)
+      setError('Ошибка при выполнении поиска. Попробуйте снова.')
+      setSearchResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const handleSearch = () => {
+    performSearch(searchQuery)
   }
 
   return (
-    <Box minH="100vh" bg="gray.50">
-      {/* Header */}
-      <Box bg="white" shadow="sm" borderBottom="1px" borderColor="gray.200">
-        <Flex maxW="7xl" mx="auto" px={6} py={4} justify="space-between" align="center">
-          <HStack gap={4}>
-            <Link href="/">
-              <Button variant="outline" size="sm">
-                ← Назад к главной
-              </Button>
-            </Link>
-            <Heading size="lg" color="green.600">
-              🔍 Поиск игр
-            </Heading>
-          </HStack>
-        </Flex>
-      </Box>
-
+    <Box minH="100vh" bg="bg.page">
+      <AppHeader />
+      
       {/* Main Content */}
       <Box maxW="7xl" mx="auto" px={6} py={8}>
         <VStack gap={8} align="stretch">
+          {/* Page Header */}
+          <Heading size="lg" color="green.600" textAlign="center">
+            <Icon name="search" size={24} style={{ marginRight: '8px' }} />
+            Поиск игр
+          </Heading>
+          
           {/* Search Bar */}
-          <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+          <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
             <VStack gap={4}>
               <Heading size="md" textAlign="center">Найти игры в каталоге</Heading>
               <HStack gap={4} w="full" maxW="2xl">
@@ -108,7 +90,7 @@ export default function SearchPage() {
                   size="lg"
                   onClick={handleSearch}
                   loading={isSearching}
-                  disabled={isSearching}
+                  disabled={isSearching || !searchQuery.trim()}
                 >
                   Поиск
                 </Button>
@@ -118,62 +100,90 @@ export default function SearchPage() {
 
           {/* Search Results */}
           <Box>
-            <Flex justify="space-between" align="center" mb={6}>
-              <Heading size="md">
-                Результаты поиска ({filteredGames.length})
-              </Heading>
-              <Text color="gray.500">
-                {searchQuery ? `По запросу "${searchQuery}"` : 'Все игры'}
-              </Text>
-            </Flex>
+            {isSearching && (
+              <VStack py={8}>
+                <Spinner size="lg" />
+                <Text>Поиск игр...</Text>
+              </VStack>
+            )}
 
-            <Grid templateColumns="repeat(auto-fit, minmax(400px, 1fr))" gap={6}>
-              {filteredGames.map((game) => (
-                <Box key={game.id} p={6} bg="white" borderRadius="lg" shadow="sm">
-                  <VStack align="stretch" gap={4}>
-                    <HStack justify="space-between" align="start">
-                      <VStack align="start" gap={1} flex="1">
-                        <Heading size="md">{game.title}</Heading>
-                        <Text color="gray.600" fontSize="sm">
-                          {game.description}
-                        </Text>
-                      </VStack>
-                      <Badge colorScheme="blue" variant="subtle">
-                        {game.category}
-                      </Badge>
-                    </HStack>
-
-                    <HStack justify="space-between" fontSize="sm" color="gray.500">
-                      <Text>Размер: {game.size}</Text>
-                      <HStack gap={4}>
-                        <Text color="green.600">↑ {game.seeders}</Text>
-                        <Text color="red.500">↓ {game.leechers}</Text>
-                      </HStack>
-                    </HStack>
-
-                    <HStack gap={3}>
-                      <Button colorScheme="green" flex="1">
-                        Скачать
-                      </Button>
-                      <Button variant="outline" flex="1">
-                        Подробнее
-                      </Button>
-                    </HStack>
-                  </VStack>
-                </Box>
-              ))}
-            </Grid>
-
-            {filteredGames.length === 0 && (
-              <Box p={8} bg="white" borderRadius="lg" shadow="sm" textAlign="center">
-                <Text color="gray.500" fontSize="lg">
-                  {searchQuery ? 'Игры не найдены' : 'Каталог пуст'}
+            {!isSearching && hasSearched && (
+              <Flex justify="space-between" align="center" mb={6}>
+                <Heading size="md">
+                  Результаты поиска ({searchResults.length})
+                </Heading>
+                <Text color="fg.muted">
+                  {searchQuery ? `По запросу "${searchQuery}"` : 'Все игры'}
                 </Text>
-                <Text color="gray.400" mt={2}>
-                  {searchQuery 
-                    ? 'Попробуйте изменить поисковый запрос'
-                    : 'Добавьте игры в систему'
-                  }
+              </Flex>
+            )}
+
+            {error && (
+              <Box p={4} bg="red.50" borderRadius="lg" mb={4}>
+                <Text color="red.600">{error}</Text>
+              </Box>
+            )}
+
+            {!isSearching && !error && searchResults.length > 0 && (
+              <Grid templateColumns="repeat(auto-fit, minmax(400px, 1fr))" gap={6}>
+                {searchResults.map((game) => (
+                  <Box key={game.id} p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
+                    <VStack align="stretch" gap={4}>
+                      <HStack justify="space-between" align="start">
+                        <VStack align="start" gap={1} flex="1">
+                          <Heading size="md">{game.title}</Heading>
+                          <Text color="fg.muted" fontSize="sm">
+                            {game.description}
+                          </Text>
+                        </VStack>
+                        <Badge colorScheme="blue" variant="subtle">
+                          {game.genre || 'Unknown'}
+                        </Badge>
+                      </HStack>
+
+                      <HStack justify="space-between" fontSize="sm" color="fg.muted">
+                        <Text>
+                          Размер: {game.file_size ? 
+                            `${(game.file_size / (1024 * 1024 * 1024)).toFixed(1)} GB` : 
+                            'Unknown'}
+                        </Text>
+                        <Text color="fg.muted">
+                          {game.developer && `${game.developer}`}
+                        </Text>
+                      </HStack>
+
+                      <HStack gap={3}>
+                        <Button colorScheme="green" flex="1">
+                          Добавить в библиотеку
+                        </Button>
+                        <Button variant="outline" flex="1">
+                          Подробнее
+                        </Button>
+                      </HStack>
+                    </VStack>
+                  </Box>
+                ))}
+              </Grid>
+            )}
+
+            {!isSearching && !error && hasSearched && searchResults.length === 0 && (
+              <Box p={8} bg="bg.surface" borderRadius="lg" shadow="sm" textAlign="center">
+                <Text color="fg.muted" fontSize="lg">
+                  Игры не найдены по запросу "{searchQuery}"
+                </Text>
+                <Text color="fg.muted" fontSize="sm" mt={2}>
+                  Попробуйте изменить поисковый запрос
+                </Text>
+              </Box>
+            )}
+
+            {!hasSearched && !isSearching && (
+              <Box p={8} bg="bg.surface" borderRadius="lg" shadow="sm" textAlign="center">
+                <Text color="fg.muted" fontSize="lg">
+                  Введите запрос для поиска игр
+                </Text>
+                <Text color="fg.muted" fontSize="sm" mt={2}>
+                  Используйте глобальную поисковую строку или поле выше
                 </Text>
               </Box>
             )}

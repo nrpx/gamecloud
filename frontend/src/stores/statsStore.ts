@@ -1,12 +1,14 @@
 import { create } from 'zustand'
 import { subscribeWithSelector, devtools } from 'zustand/middleware'
 
+// Типы для статистики - соответствуют backend API
 // Типы для статистики
 interface Stats {
-  totalGames: number
-  totalDownloads: number
-  totalSize: string
-  activeDownloads: number
+  total_games: number
+  active_downloads: number
+  completed_downloads: number
+  total_downloaded_size: number
+  total_upload_size: number
 }
 
 interface StatsState {

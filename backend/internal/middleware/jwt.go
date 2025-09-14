@@ -20,24 +20,38 @@ type Claims struct {
 // JWTAuthMiddleware создает middleware для проверки JWT токенов
 func JWTAuthMiddleware(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			fmt.Printf("🔒 JWT: Missing Authorization header\n")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
-			c.Abort()
-			return
+		var tokenString string
+		
+		// Проверяем WebSocket соединение по query параметру
+		if strings.HasPrefix(c.Request.URL.Path, "/api/v1/ws") {
+			tokenString = c.Query("token")
+			if tokenString == "" {
+				fmt.Printf("🔒 JWT: Missing token query parameter for WebSocket\n")
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token query parameter required for WebSocket"})
+				c.Abort()
+				return
+			}
+		} else {
+			// Обычная проверка через Authorization header
+			authHeader := c.GetHeader("Authorization")
+			if authHeader == "" {
+				fmt.Printf("🔒 JWT: Missing Authorization header\n")
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+				c.Abort()
+				return
+			}
+
+			// Проверяем формат "Bearer <token>"
+			parts := strings.Split(authHeader, " ")
+			if len(parts) != 2 || parts[0] != "Bearer" {
+				fmt.Printf("🔒 JWT: Invalid header format: %s\n", authHeader)
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
+				c.Abort()
+				return
+			}
+			tokenString = parts[1]
 		}
 
-		// Проверяем формат "Bearer <token>"
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			fmt.Printf("🔒 JWT: Invalid header format: %s\n", authHeader)
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
-			c.Abort()
-			return
-		}
-
-		tokenString := parts[1]
 		tokenPreview := tokenString
 		if len(tokenString) > 20 {
 			tokenPreview = tokenString[:20] + "..."

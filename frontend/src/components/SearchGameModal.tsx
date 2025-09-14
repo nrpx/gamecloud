@@ -65,7 +65,7 @@ export default function SearchGameModal({ isOpen, onClose, onGameSelect }: Searc
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <Box
-        bg="white"
+        bg="bg.surface"
         borderRadius="lg"
         boxShadow="xl"
         maxW="2xl"
@@ -103,7 +103,7 @@ export default function SearchGameModal({ isOpen, onClose, onGameSelect }: Searc
                   key={game.id}
                   p={3}
                   border="1px"
-                  borderColor="gray.200"
+                  borderColor="border.muted"
                   borderRadius="md"
                   cursor="pointer"
                   _hover={{ bg: 'gray.50' }}
@@ -121,13 +121,13 @@ export default function SearchGameModal({ isOpen, onClose, onGameSelect }: Searc
                     )}
                     <VStack align="start" gap={1} flex={1}>
                       <Text fontWeight="bold">{game.title}</Text>
-                      <Text fontSize="sm" color="gray.600" lineClamp={2}>
+                      <Text fontSize="sm" color="fg.muted" lineClamp={2}>
                         {game.description}
                       </Text>
                       <HStack gap={2}>
                         {game.genre && <Badge size="sm">{game.genre}</Badge>}
                         {game.developer && (
-                          <Text fontSize="xs" color="gray.500">
+                          <Text fontSize="xs" color="fg.muted">
                             {game.developer}
                           </Text>
                         )}

@@ -8,6 +8,7 @@ import (
 	"gamecloud/internal/database"
 	"gamecloud/internal/download"
 	"gamecloud/internal/torrent"
+	websocketPkg "gamecloud/internal/websocket"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,22 +22,30 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to initialize database:", err)
 	}
+	log.Println("Database initialized successfully")
 
 	// Initialize torrent client
+	log.Println("Initializing torrent client...")
 	torrentClient, err := torrent.NewClient(&cfg.TorrentConfig)
 	if err != nil {
 		log.Fatal("Failed to initialize torrent client:", err)
 	}
+	log.Println("Torrent client initialized successfully")
 	defer torrentClient.Close()
 
-	// Initialize download manager
+	// Initialize WebSocket hub
+	wsHub := websocketPkg.NewHub()
+	go wsHub.Run()
+
+	// Initialize download manager with torrent client
 	downloadManager := download.NewManager(torrentClient, db, cfg)
+	downloadManager.SetWebSocketHub(wsHub) // Подключаем WebSocket hub
 	downloadManager.Start()
 	defer downloadManager.Stop()
 
 	// Setup API routes
 	router := gin.Default()
-	api.SetupRoutes(router, db, downloadManager, cfg)
+	api.SetupRoutes(router, db, downloadManager, cfg, wsHub)
 
 	// Start server
 	log.Printf("Starting server on port %s", cfg.Port)

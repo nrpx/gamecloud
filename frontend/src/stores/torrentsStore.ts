@@ -88,8 +88,21 @@ async function downloadActionAPI(downloadId: string, action: 'pause' | 'resume' 
     throw new Error('No authentication token available')
   }
   
-  const response = await fetch(`/api/v1/downloads/${downloadId}/${action}`, {
-    method: 'POST',
+  let url: string
+  let method: string
+  
+  if (action === 'cancel') {
+    // Для отмены используем DELETE метод
+    url = `/api/v1/downloads/${downloadId}`
+    method = 'DELETE'
+  } else {
+    // Для pause/resume используем PUT метод
+    url = `/api/v1/downloads/${downloadId}/${action}`
+    method = 'PUT'
+  }
+  
+  const response = await fetch(url, {
+    method,
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',

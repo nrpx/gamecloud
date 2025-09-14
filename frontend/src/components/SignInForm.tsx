@@ -67,7 +67,7 @@ export default function SignInForm() {
             </Button>
           </VStack>
         </form>
-        <Text fontSize="sm" color="gray.500">
+        <Text fontSize="sm" color="fg.muted">
           Тестовые данные: admin/admin или user/user123
         </Text>
       </VStack>

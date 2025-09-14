@@ -166,27 +166,27 @@ export default function GameDetailPage() {
                 <Grid templateColumns="repeat(2, 1fr)" gap={4} w="full">
                   {game.genre && (
                     <Box>
-                      <Text fontWeight="bold" color="gray.600">Жанр</Text>
+                      <Text fontWeight="bold" color="fg.muted">Жанр</Text>
                       <Text>{game.genre}</Text>
                     </Box>
                   )}
 
                   {game.developer && (
                     <Box>
-                      <Text fontWeight="bold" color="gray.600">Разработчик</Text>
+                      <Text fontWeight="bold" color="fg.muted">Разработчик</Text>
                       <Text>{game.developer}</Text>
                     </Box>
                   )}
 
                   {game.publisher && (
                     <Box>
-                      <Text fontWeight="bold" color="gray.600">Издатель</Text>
+                      <Text fontWeight="bold" color="fg.muted">Издатель</Text>
                       <Text>{game.publisher}</Text>
                     </Box>
                   )}
 
                   <Box>
-                    <Text fontWeight="bold" color="gray.600">Дата добавления</Text>
+                    <Text fontWeight="bold" color="fg.muted">Дата добавления</Text>
                     <Text>{game.created_at ? new Date(game.created_at).toLocaleDateString('ru-RU') : 'Неизвестно'}</Text>
                   </Box>
                 </Grid>

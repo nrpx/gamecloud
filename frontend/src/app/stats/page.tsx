@@ -1,5 +1,6 @@
 'use client'
 
+import { Icon } from '@/components/ui/Icon'
 import {
   Box,
   Container,
@@ -16,7 +17,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/stores/gameStore'
 import { useDownloadStore } from '@/stores/downloadStore'
-import ProtectedPage from '@/components/ProtectedPage'
+import { AppHeader } from '@/components/ui/AppHeader'
 
 export default function StatsPage() {
   const router = useRouter()
@@ -45,65 +46,62 @@ export default function StatsPage() {
   }, {} as Record<string, number>)
 
   return (
-    <ProtectedPage>
-      <Container maxW="1200px" py={8}>
-        <VStack gap={6} align="stretch">
-          <HStack justify="space-between">
-            <Heading size="xl">Статистика библиотеки</Heading>
-            <Button
-              variant="outline"
-              onClick={() => router.push('/')}
-            >
-              ← Назад к библиотеке
-            </Button>
-          </HStack>
+    <Box minH="100vh" bg="bg.page">
+      <AppHeader />
+      
+      <Container maxW="1200px" py={4}>
+        <VStack gap={4} align="stretch">
+          <Heading size="xl" textAlign="center" color="purple.600">
+            <Icon name="stats" size={24} style={{ marginRight: '8px' }} />
+            Статистика библиотеки
+          </Heading>
 
-          <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={6}>
-            <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+          <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={4}>
+            <Box bg="bg.surface" p={6} borderRadius="lg" boxShadow="md">
               <VStack align="start">
-                <Text fontSize="sm" color="gray.500">Всего игр</Text>
+                <Text fontSize="sm" color="fg.muted">Всего игр</Text>
                 <Text fontSize="2xl" fontWeight="bold" color="blue.500">{stats.totalGames}</Text>
               </VStack>
             </Box>
 
-            <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+            <Box bg="bg.surface" p={6} borderRadius="lg" boxShadow="md">
               <VStack align="start">
-                <Text fontSize="sm" color="gray.500">Доступных игр</Text>
+                <Text fontSize="sm" color="fg.muted">Доступных игр</Text>
                 <Text fontSize="2xl" fontWeight="bold" color="green.500">{stats.availableGames}</Text>
               </VStack>
             </Box>
 
-            <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+            <Box bg="bg.surface" p={6} borderRadius="lg" boxShadow="md">
               <VStack align="start">
-                <Text fontSize="sm" color="gray.500">Загружается</Text>
+                <Text fontSize="sm" color="fg.muted">Загружается</Text>
                 <Text fontSize="2xl" fontWeight="bold" color="blue.500">{stats.downloadingGames}</Text>
               </VStack>
             </Box>
 
-            <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+            <Box bg="bg.surface" p={6} borderRadius="lg" boxShadow="md">
               <VStack align="start">
-                <Text fontSize="sm" color="gray.500">Активные загрузки</Text>
+                <Text fontSize="sm" color="fg.muted">Активные загрузки</Text>
                 <Text fontSize="2xl" fontWeight="bold" color="orange.500">{stats.activeDownloads}</Text>
               </VStack>
             </Box>
 
-            <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+            <Box bg="bg.surface" p={6} borderRadius="lg" boxShadow="md">
               <VStack align="start">
-                <Text fontSize="sm" color="gray.500">Завершенные загрузки</Text>
+                <Text fontSize="sm" color="fg.muted">Завершенные загрузки</Text>
                 <Text fontSize="2xl" fontWeight="bold" color="green.500">{stats.completedDownloads}</Text>
               </VStack>
             </Box>
 
-            <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+            <Box bg="bg.surface" p={6} borderRadius="lg" boxShadow="md">
               <VStack align="start">
-                <Text fontSize="sm" color="gray.500">Всего загрузок</Text>
-                <Text fontSize="2xl" fontWeight="bold" color="gray.500">{stats.totalDownloads}</Text>
+                <Text fontSize="sm" color="fg.muted">Всего загрузок</Text>
+                <Text fontSize="2xl" fontWeight="bold" color="fg.muted">{stats.totalDownloads}</Text>
               </VStack>
             </Box>
           </Grid>
 
-          <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gap={6}>
-            <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+          <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gap={4}>
+            <Box bg="bg.surface" p={6} borderRadius="lg" boxShadow="md">
               <Heading size="md" mb={4}>Жанры игр</Heading>
               {Object.keys(genres).length > 0 ? (
                 <VStack align="stretch" gap={2}>
@@ -117,11 +115,11 @@ export default function StatsPage() {
                     ))}
                 </VStack>
               ) : (
-                <Text color="gray.500">Нет данных о жанрах</Text>
+                <Text color="fg.muted">Нет данных о жанрах</Text>
               )}
             </Box>
 
-            <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+            <Box bg="bg.surface" p={6} borderRadius="lg" boxShadow="md">
               <Heading size="md" mb={4}>Последние загрузки</Heading>
               {downloads.length > 0 ? (
                 <VStack align="stretch" gap={2}>
@@ -144,12 +142,12 @@ export default function StatsPage() {
                     ))}
                 </VStack>
               ) : (
-                <Text color="gray.500">Нет загрузок</Text>
+                <Text color="fg.muted">Нет загрузок</Text>
               )}
             </Box>
           </Grid>
         </VStack>
       </Container>
-    </ProtectedPage>
+    </Box>
   )
 }

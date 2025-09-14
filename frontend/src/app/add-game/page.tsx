@@ -47,9 +47,9 @@ export default function AddGamePage() {
   }
 
   return (
-    <Box minH="100vh" bg="gray.50">
+    <Box minH="100vh" bg="bg.page">
       {/* Header */}
-      <Box bg="white" shadow="sm" borderBottom="1px" borderColor="gray.200">
+      <Box bg="bg.surface" shadow="sm" borderBottom="1px" borderColor="border.muted">
         <Flex maxW="7xl" mx="auto" px={6} py={4} justify="space-between" align="center">
           <HStack gap={4}>
             <Link href="/">
@@ -69,7 +69,7 @@ export default function AddGamePage() {
         <form onSubmit={handleSubmit}>
           <VStack gap={8} align="stretch">
             {/* Game Info Card */}
-            <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+            <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
               <Heading size="md" mb={6}>Информация об игре</Heading>
               <VStack gap={4} align="stretch">
                 <Box>
@@ -95,7 +95,7 @@ export default function AddGamePage() {
             </Box>
 
             {/* Torrent Upload Card */}
-            <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+            <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
               <Heading size="md" mb={6}>Загрузка торрента</Heading>
               <VStack gap={4} align="stretch">
                 <Box>
@@ -106,13 +106,13 @@ export default function AddGamePage() {
                     onChange={handleFileChange}
                     p={1}
                   />
-                  <Text fontSize="sm" color="gray.500" mt={1}>
+                  <Text fontSize="sm" color="fg.muted" mt={1}>
                     Поддерживаются файлы .torrent
                   </Text>
                 </Box>
                 
                 <Box textAlign="center" py={4}>
-                  <Text color="gray.500">или</Text>
+                  <Text color="fg.muted">или</Text>
                 </Box>
                 
                 <Box>
@@ -122,7 +122,7 @@ export default function AddGamePage() {
                     value={formData.magnetLink}
                     onChange={(e) => handleInputChange('magnetLink', e.target.value)}
                   />
-                  <Text fontSize="sm" color="gray.500" mt={1}>
+                  <Text fontSize="sm" color="fg.muted" mt={1}>
                     Вставьте magnet-ссылку для скачивания
                   </Text>
                 </Box>
@@ -130,7 +130,7 @@ export default function AddGamePage() {
             </Box>
 
             {/* Submit Actions */}
-            <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+            <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
               <HStack gap={4} justify="end">
                 <Link href="/">
                   <Button variant="outline" size="lg">

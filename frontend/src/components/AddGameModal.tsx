@@ -184,7 +184,7 @@ export default function AddGameModal({ isOpen, onClose }: AddGameModalProps) {
         onClick={(e) => e.target === e.currentTarget && handleClose()}
       >
         <Box
-          bg="white"
+          bg="bg.surface"
           borderRadius="lg"
           boxShadow="xl"
           maxW="2xl"
@@ -277,7 +277,7 @@ export default function AddGameModal({ isOpen, onClose }: AddGameModalProps) {
 
             <Box>
               <Text fontWeight="bold" mb={2}>Источник торрента</Text>
-              <Text fontSize="sm" color="gray.600" mb={3}>
+              <Text fontSize="sm" color="fg.muted" mb={3}>
                 Укажите magnet-ссылку или загрузите .torrent файл
               </Text>
               
@@ -291,7 +291,7 @@ export default function AddGameModal({ isOpen, onClose }: AddGameModalProps) {
                   />
                 </Box>
 
-                <Text textAlign="center" color="gray.500">или</Text>
+                <Text textAlign="center" color="fg.muted">или</Text>
 
                 <Box>
                   <Text fontWeight="bold" mb={2}>.torrent файл</Text>

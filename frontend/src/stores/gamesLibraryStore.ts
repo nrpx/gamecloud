@@ -36,6 +36,8 @@ interface GamesLibraryState {
   // Действия
   fetchGames: () => Promise<void>
   refreshGames: () => Promise<void>
+  updateGame: (gameId: string, gameData: Partial<GameWithDownload>) => Promise<void>
+  deleteGame: (gameId: string) => Promise<void>
   pauseGameDownload: (gameId: string) => Promise<void>
   resumeGameDownload: (gameId: string) => Promise<void>
   cancelGameDownload: (gameId: string) => Promise<void>
@@ -91,6 +93,53 @@ async function fetchGamesAPI(): Promise<GameWithDownload[]> {
   
   console.log('✅ [GamesLibraryStore] Valid array data received:', data.length, 'items')
   return data
+}
+
+// Функция для обновления игры
+async function updateGameAPI(gameId: string, gameData: Partial<GameWithDownload>): Promise<GameWithDownload> {
+  const token = await getAuthToken()
+  
+  if (!token) {
+    throw new Error('No authentication token available')
+  }
+  
+  const response = await fetch(`/api/v1/games/${gameId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(gameData),
+  })
+  
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`HTTP ${response.status}: ${errorText}`)
+  }
+
+  return await response.json()
+}
+
+// Функция для удаления игры
+async function deleteGameAPI(gameId: string): Promise<void> {
+  const token = await getAuthToken()
+  
+  if (!token) {
+    throw new Error('No authentication token available')
+  }
+  
+  const response = await fetch(`/api/v1/games/${gameId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  })
+  
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`HTTP ${response.status}: ${errorText}`)
+  }
 }
 
 // Функция для действий с загрузками игр
@@ -184,6 +233,36 @@ export const useGamesLibraryStore = create<GamesLibraryState>()(
         console.log('🔄 [GamesLibraryStore] Force refreshing games...')
         set({ lastFetched: null }) // Сбрасываем кэш
         return get().fetchGames()
+      },
+      
+      // Обновление игры
+      updateGame: async (gameId: string, gameData: Partial<GameWithDownload>) => {
+        try {
+          console.log('✏️ [GamesLibraryStore] Updating game:', gameId, gameData)
+          await updateGameAPI(gameId, gameData)
+          // Обновляем данные после изменения
+          await get().refreshGames()
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+          console.error('🔴 [GamesLibraryStore] Error updating game:', errorMessage)
+          set({ error: errorMessage })
+          throw error
+        }
+      },
+      
+      // Удаление игры
+      deleteGame: async (gameId: string) => {
+        try {
+          console.log('🗑️ [GamesLibraryStore] Deleting game:', gameId)
+          await deleteGameAPI(gameId)
+          // Обновляем данные после удаления
+          await get().refreshGames()
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+          console.error('🔴 [GamesLibraryStore] Error deleting game:', errorMessage)
+          set({ error: errorMessage })
+          throw error
+        }
       },
       
       // Пауза загрузки игры
@@ -300,3 +379,9 @@ export const useCancelGameDownload = () =>
 
 export const useClearGames = () => 
   useGamesLibraryStore(state => state.clearGames)
+
+export const useUpdateGame = () => 
+  useGamesLibraryStore(state => state.updateGame)
+
+export const useDeleteGame = () => 
+  useGamesLibraryStore(state => state.deleteGame)

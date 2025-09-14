@@ -15,8 +15,14 @@ import {
   Spinner,
   Input,
   Grid,
-  SimpleGrid
+  SimpleGrid,
+  Textarea,
+  Progress
 } from '@chakra-ui/react'
+import { useWebSocket } from '@/hooks/useWebSocket'
+import { AppHeader } from '@/components/ui/AppHeader'
+import { Icon } from '@/components/ui/Icon'
+import BrandButton from '@/components/ui/BrandButton'
 import { formatFileSize, formatSpeed, formatETA } from '@/lib/api'
 import {
   useGamesLibraryLoading,
@@ -28,8 +34,15 @@ import {
   usePauseGameDownload,
   useResumeGameDownload,
   useCancelGameDownload,
-  useClearGames
+  useClearGames,
+  useUpdateGame,
+  useDeleteGame
 } from '@/stores/gamesLibraryStore'
+
+import {
+  useTorrentsData,
+  useFetchDownloads
+} from '@/stores/torrentsStore'
 
 // Тип для игры
 interface Game {
@@ -45,13 +58,17 @@ interface Game {
     total_size: number
     downloaded_size: number
   }
+  downloads?: any[]
   created_at: string
 }
 
 export default function GamesLibraryPage() {
   const { data: session, status } = useSession()
   
-  // Используем Zustand hooks
+  // WebSocket для real-time обновлений
+  const { isConnected, progressUpdates } = useWebSocket()
+  
+  // Используем Zustand hooks для игр
   const games = useGamesLibraryData()
   const isLoading = useGamesLibraryLoading()
   const isInitialized = useGamesLibraryInitialized()
@@ -62,285 +79,509 @@ export default function GamesLibraryPage() {
   const resumeGameDownload = useResumeGameDownload()
   const cancelGameDownload = useCancelGameDownload()
   const clearGames = useClearGames()
+  const updateGame = useUpdateGame()
+  const deleteGame = useDeleteGame()
+  
+  // Используем Zustand hooks для торрентов
+  const downloads = useTorrentsData()
+  const fetchDownloads = useFetchDownloads()
   
   // Локальное состояние для поиска и фильтров
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState<'all' | 'downloading' | 'completed' | 'seeding'>('all')
+  const [editingGame, setEditingGame] = useState<Game | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [gameFormData, setGameFormData] = useState({ title: '', genre: '', description: '', image_url: '' })
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
 
-  // Единственный useEffect для инициализации/очистки данных при изменении сессии
+  // Загружаем данные при инициализации
   useEffect(() => {
-    console.log('🎮 [GamesLibraryPage] Session status changed:', {
-      status,
-      hasUser: !!session?.user,
-      username: session?.user?.username
-    })
-    
-    if (session?.user && status === 'authenticated') {
-      console.log('✅ [GamesLibraryPage] User authenticated, loading games...')
-      fetchGames()
+    if (session && status === 'authenticated') {
+      if (!isInitialized) {
+        fetchGames()
+      }
+      fetchDownloads() // Получаем данные о загрузках
     } else if (status === 'unauthenticated') {
-      console.log('❌ [GamesLibraryPage] User unauthenticated, clearing games...')
       clearGames()
     }
-  }, [session, status, fetchGames, clearGames])
+  }, [session, status, isInitialized, fetchGames, fetchDownloads, clearGames])
 
-  const handleAction = async (gameId: string, action: 'pause' | 'resume' | 'cancel') => {
-    try {
-      switch (action) {
-        case 'pause':
-          await pauseGameDownload(gameId)
-          break
-        case 'resume':
-          await resumeGameDownload(gameId)
-          break
-        case 'cancel':
-          await cancelGameDownload(gameId)
-          break
+  // Функция для получения данных о загрузке игры
+  const getGameDownloadInfo = (gameId: string) => {
+    // Сначала ищем в downloads по game_id (предполагаем что есть связь)
+    const gameDownloads = downloads?.filter(d => 
+      // Если есть связь с игрой, используем её
+      (d as any).game_id === gameId
+    ) || []
+    
+    if (gameDownloads.length === 0) return null
+    
+    // Берем последнюю активную загрузку
+    const activeDownload = gameDownloads.find(d => 
+      ['downloading', 'queued', 'seeding'].includes(d.status)
+    ) || gameDownloads[gameDownloads.length - 1]
+    
+    // Обогащаем данными WebSocket если есть
+    const progressUpdate = progressUpdates.get(activeDownload.id)
+    if (progressUpdate) {
+      return {
+        ...activeDownload,
+        ...progressUpdate
       }
+    }
+    
+    return activeDownload
+  }
+
+  // Функции для управления играми
+  const openEditModal = (game: Game) => {
+    setEditingGame(game)
+    setGameFormData({
+      title: game.title,
+      genre: game.genre,
+      description: game.description,
+      image_url: game.image_url || ''
+    })
+    setIsEditModalOpen(true)
+  }
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false)
+    setEditingGame(null)
+    setGameFormData({ title: '', genre: '', description: '', image_url: '' })
+  }
+
+  const handleUpdateGame = async () => {
+    if (!editingGame) return
+    
+    try {
+      await updateGame(editingGame.id, gameFormData)
+      closeEditModal()
+      refreshGames()
     } catch (error) {
-      console.error(`Ошибка выполнения действия ${action}:`, error)
-      alert(`Ошибка: ${error}`)
+      console.error('Ошибка обновления игры:', error)
+      alert('Ошибка при обновлении игры')
     }
   }
 
-  const filteredGames = games.filter(game => {
+  const handleDeleteGame = async (gameId: string) => {
+    if (!confirm('Вы уверены, что хотите удалить эту игру?')) return
+    
+    try {
+      setIsDeleting(gameId)
+      await deleteGame(gameId)
+      refreshGames()
+    } catch (error) {
+      console.error('Ошибка удаления игры:', error)
+      alert('Ошибка при удалении игры')
+    } finally {
+      setIsDeleting(null)
+    }
+  }
+
+  // Фильтрация игр
+  const filteredGames = games ? games.filter(game => {
     const matchesSearch = game.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          game.genre.toLowerCase().includes(searchTerm.toLowerCase())
-    const gameStatus = game.download?.status || 'completed'
-    const matchesFilter = filter === 'all' || gameStatus === filter
-    return matchesSearch && matchesFilter
-  })
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'downloading': return 'blue'
-      case 'completed': return 'green'
-      case 'seeding': return 'orange'
-      case 'paused': return 'yellow'
-      case 'error': return 'red'
-      default: return 'gray'
+    
+    if (!matchesSearch) return false
+    
+    if (filter === 'all') return true
+    
+    const downloadInfo = getGameDownloadInfo(game.id)
+    if (!downloadInfo) return false
+    
+    switch (filter) {
+      case 'downloading':
+        return ['downloading', 'queued'].includes(downloadInfo.status)
+      case 'completed':
+        return downloadInfo.status === 'completed'
+      case 'seeding':
+        return downloadInfo.status === 'seeding'
+      default:
+        return true
     }
-  }
+  }) : []
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'downloading': return 'Загружается'
-      case 'completed': return 'Загружено'
-      case 'seeding': return 'Раздается'
-      case 'paused': return 'Пауза'
-      case 'error': return 'Ошибка'
-      default: return 'Готово'
-    }
-  }
-
-  if (status === 'loading') {
+  if (status === 'loading' || !isInitialized) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minH="100vh">
-        <VStack gap={4}>
-          <Spinner size="xl" />
-          <Text>Загрузка...</Text>
-        </VStack>
+      <Box minH="100vh" bg="bg.page">
+        <AppHeader title="Библиотека игр" />
+        <Box display="flex" justifyContent="center" alignItems="center" h="50vh">
+          <VStack gap={4}>
+            <Spinner size="xl" />
+            <Text>Загрузка библиотеки...</Text>
+          </VStack>
+        </Box>
+      </Box>
+    )
+  }
+
+  if (status === 'unauthenticated') {
+    return (
+      <Box minH="100vh" bg="bg.page">
+        <AppHeader title="Библиотека игр" />
+        <Box maxW="md" mx="auto" mt={8} p={6} textAlign="center">
+          <Text>Вы не авторизованы. Пожалуйста, войдите в систему.</Text>
+        </Box>
       </Box>
     )
   }
 
   return (
-    <Box minH="100vh" bg="gray.50">
-      {/* Header */}
-      <Box bg="white" shadow="sm" borderBottom="1px" borderColor="gray.200">
-        <Flex maxW="7xl" mx="auto" px={6} py={4} justify="space-between" align="center">
-          <HStack gap={4}>
-            <Link href="/">
-              <Button variant="ghost" size="sm">
-                ← Главная
-              </Button>
-            </Link>
-            <Heading size="lg" color="blue.600">
-              🎮 Библиотека игр
-            </Heading>
-          </HStack>
-          <HStack gap={4}>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => refreshGames()}
-              loading={isLoading}
-              disabled={isLoading}
-            >
-              🔄 Обновить
-            </Button>
-            <Link href="/games/add">
-              <Button colorScheme="blue" size="sm">
-                + Добавить игру
-              </Button>
-            </Link>
-            <Badge colorScheme="green">{session?.user.role}</Badge>
-            <Text fontSize="sm">@{session?.user.username}</Text>
-          </HStack>
-        </Flex>
-      </Box>
+    <Box minH="100vh" bg="bg.page">
+      <AppHeader title="Библиотека игр">
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={() => refreshGames()}
+          loading={isLoading}
+          disabled={isLoading}
+        >
+          <Icon name="refresh" size={16} style={{ marginRight: '6px' }} />
+          Обновить
+        </Button>
+        <Link href="/games/add">
+          <BrandButton intent="primary" size="sm">
+            <Icon name="add" size={16} style={{ marginRight: '6px' }} />
+            Добавить игру
+          </BrandButton>
+        </Link>
+      </AppHeader>
 
-      {/* Content */}
-      <Box maxW="7xl" mx="auto" px={6} py={8}>
-        <VStack gap={8} align="stretch">
-          {/* Filters */}
-          <HStack gap={4} wrap="wrap">
+      {/* Main Content */}
+      <Box maxW="7xl" mx="auto" px={4} py={4}>
+        <VStack gap={4} align="stretch">
+          {/* Search and Filters */}
+          <HStack gap={4} flexWrap="wrap">
             <Input
-              placeholder="Поиск игр..."
+              placeholder="Поиск по названию или жанру..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               maxW="md"
+              bg="bg.surface"
             />
             <HStack gap={2}>
-              {[
-                { key: 'all', label: 'Все' },
-                { key: 'downloading', label: 'Загружаются' },
-                { key: 'downloaded', label: 'Загружены' },
-                { key: 'seeding', label: 'Раздаются' }
-              ].map(({ key, label }) => (
-                <Button
-                  key={key}
-                  size="sm"
-                  variant={filter === key ? 'solid' : 'outline'}
-                  colorScheme="blue"
-                  onClick={() => setFilter(key as any)}
-                >
-                  {label}
-                </Button>
-              ))}
+              <Button
+                size="sm"
+                variant={filter === 'all' ? 'solid' : 'outline'}
+                onClick={() => setFilter('all')}
+              >
+                Все
+              </Button>
+              <Button
+                size="sm"
+                variant={filter === 'downloading' ? 'solid' : 'outline'}
+                colorScheme="blue"
+                onClick={() => setFilter('downloading')}
+              >
+                Загружаются
+              </Button>
+              <Button
+                size="sm"
+                variant={filter === 'completed' ? 'solid' : 'outline'}
+                colorScheme="green"
+                onClick={() => setFilter('completed')}
+              >
+                Готовые
+              </Button>
+              <Button
+                size="sm"
+                variant={filter === 'seeding' ? 'solid' : 'outline'}
+                colorScheme="orange"
+                onClick={() => setFilter('seeding')}
+              >
+                Раздают
+              </Button>
             </HStack>
           </HStack>
 
+          {/* WebSocket Status */}
+          {isConnected && (
+            <Box p={3} bg="green.subtle" borderRadius="md" border="1px" borderColor="green.muted">
+              <HStack>
+                <Box w={2} h={2} bg="green.solid" borderRadius="full" />
+                <Text fontSize="sm" color="green.fg">
+                  Подключено к real-time обновлениям
+                </Text>
+              </HStack>
+            </Box>
+          )}
+
           {/* Games Grid */}
-          {!isInitialized || isLoading ? (
-            <Box textAlign="center" py={12}>
-              <Spinner size="xl" />
-              <Text mt={4}>Загрузка библиотеки...</Text>
-            </Box>
-          ) : error ? (
-            <Box textAlign="center" py={12}>
-              <Text fontSize="lg" color="red.500">⚠️ Ошибка загрузки библиотеки</Text>
-              <Text color="gray.500" mt={2}>{error}</Text>
-              <Button mt={4} onClick={() => fetchGames()} size="sm" colorScheme="blue">
+          {error ? (
+            <Box textAlign="center" py={4}>
+              <HStack justify="center" mb={2}>
+                <Icon name="warning" size={20} color="red.500" />
+                <Text color="red.500" fontSize="md">Ошибка загрузки библиотеки</Text>
+              </HStack>
+              <Text color="fg.muted" mt={2}>{error}</Text>
+              <BrandButton mt={4} onClick={() => refreshGames()} size="sm" intent="secondary">
                 Попробовать снова
-              </Button>
+              </BrandButton>
             </Box>
-          ) : filteredGames.length === 0 ? (
-            <Box textAlign="center" py={12}>
-              <Text fontSize="lg" color="gray.500">
-                {searchTerm || filter !== 'all' ? 'Игры не найдены' : 'Библиотека пуста'}
+          ) : !games || games.length === 0 ? (
+            <Box textAlign="center" py={16}>
+              <Text fontSize="xl" color="fg.muted" mb={4}>
+                Ваша библиотека пуста
+              </Text>
+              <Text color="fg.muted" mb={6}>
+                Добавьте первую игру, чтобы начать управление коллекцией
               </Text>
               <Link href="/games/add">
-                <Button colorScheme="blue" mt={4}>
-                  Добавить первую игру
-                </Button>
+                <BrandButton intent="primary" size="lg">
+                  Добавить игру
+                </BrandButton>
               </Link>
             </Box>
+          ) : filteredGames.length === 0 ? (
+            <Box textAlign="center" py={16}>
+              <Text fontSize="xl" color="fg.muted" mb={4}>
+                Ничего не найдено
+              </Text>
+              <Text color="fg.muted">
+                Попробуйте изменить поисковый запрос или фильтры
+              </Text>
+            </Box>
           ) : (
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} gap={6}>
-              {filteredGames.map((game) => (
-                <Box
-                  key={game.id}
-                  bg="white"
-                  borderRadius="lg"
-                  shadow="sm"
-                  overflow="hidden"
-                  transition="all 0.2s"
-                  _hover={{ shadow: 'md', transform: 'translateY(-2px)' }}
-                >
-                  {/* Game Image */}
-                  <Box
-                    h="200px"
-                    bg={game.image_url ? undefined : 'gray.200'}
-                    backgroundImage={game.image_url}
-                    backgroundSize="cover"
-                    backgroundPosition="center"
-                    position="relative"
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={4}>
+              {filteredGames.map((game) => {
+                const downloadInfo = getGameDownloadInfo(game.id)
+                
+                return (
+                  <Box 
+                    key={game.id} 
+                    bg="bg.surface" 
+                    p={4} 
+                    borderRadius="lg" 
+                    shadow="sm"
+                    borderWidth="1px"
+                    _hover={{ shadow: "md" }}
+                    transition="all 0.2s"
                   >
-                    {!game.image_url && (
-                      <Flex h="full" align="center" justify="center">
-                        <Text color="gray.500" fontSize="3xl">🎮</Text>
+                    <VStack align="stretch" gap={3}>
+                      {/* Game Header */}
+                      <Flex justify="space-between" align="start">
+                        <VStack align="start" gap={1} flex={1}>
+                          <Heading size="md" color="fg.default">
+                            {game.title}
+                          </Heading>
+                          <Badge colorScheme="purple" size="sm">
+                            {game.genre}
+                          </Badge>
+                        </VStack>
+                        <HStack gap={1}>
+                          <Button size="xs" variant="ghost" onClick={() => openEditModal(game)}>
+                            <Icon name="edit" size={16} />
+                          </Button>
+                          <Button 
+                            size="xs" 
+                            variant="ghost" 
+                            color="red.500"
+                            onClick={() => handleDeleteGame(game.id)}
+                            loading={isDeleting === game.id}
+                          >
+                            <Icon name="delete" size={16} />
+                          </Button>
+                        </HStack>
                       </Flex>
-                    )}
-                    <Box position="absolute" top={2} right={2}>
-                      <Badge colorScheme={getStatusColor(game.download?.status || 'completed')} variant="solid">
-                        {getStatusText(game.download?.status || 'completed')}
-                      </Badge>
-                    </Box>
-                  </Box>
 
-                  {/* Game Info */}
-                  <VStack p={4} align="stretch" gap={3}>
-                    <VStack align="stretch" gap={1}>
-                      <Heading size="sm" css={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>{game.title}</Heading>
-                      <HStack justify="space-between">
-                        <Badge colorScheme="gray" size="sm">{game.genre}</Badge>
-                        <Text fontSize="xs" color="gray.500">
-                          {game.download?.total_size ? formatFileSize(game.download.total_size) : 'Неизвестно'}
-                        </Text>
+                      {/* Download Status */}
+                      {downloadInfo && (
+                        <Box>
+                          <HStack justify="space-between" mb={2}>
+                            <HStack gap={2}>
+                              <Badge 
+                                colorScheme={
+                                  downloadInfo.status === 'completed' ? 'green' :
+                                  downloadInfo.status === 'downloading' ? 'blue' :
+                                  downloadInfo.status === 'seeding' ? 'orange' :
+                                  downloadInfo.status === 'paused' ? 'yellow' :
+                                  'gray'
+                                }
+                                size="sm"
+                              >
+                                {downloadInfo.status === 'completed' ? (
+                                  <HStack gap={1}>
+                                    <Icon name="settings" size={12} color="green.500" />
+                                    <Text color="green.500">Готово</Text>
+                                  </HStack>
+                                ) : downloadInfo.status === 'downloading' ? (
+                                  <HStack gap={1}>
+                                    <Icon name="download" size={12} color="blue.500" />
+                                    <Text color="blue.500">Загружается</Text>
+                                  </HStack>
+                                ) : downloadInfo.status === 'seeding' ? (
+                                  <HStack gap={1}>
+                                    <Icon name="upload" size={12} color="orange.500" />
+                                    <Text color="orange.500">Раздача</Text>
+                                  </HStack>
+                                ) : downloadInfo.status === 'paused' ? (
+                                  <HStack gap={1}>
+                                    <Icon name="pause" size={12} color="yellow.500" />
+                                    <Text color="yellow.500">Пауза</Text>
+                                  </HStack>
+                                ) : downloadInfo.status === 'queued' ? (
+                                  <HStack gap={1}>
+                                    <Icon name="settings" size={12} color="gray.500" />
+                                    <Text color="gray.500">В очереди</Text>
+                                  </HStack>
+                                ) : (
+                                  <HStack gap={1}>
+                                    <Icon name="close" size={12} color="red.500" />
+                                    <Text color="red.500">Ошибка</Text>
+                                  </HStack>
+                                )}
+                              </Badge>
+                              {downloadInfo.status === 'downloading' && (
+                                <Text fontSize="xs" color="fg.muted">
+                                  {(downloadInfo.progress || 0).toFixed(1)}%
+                                </Text>
+                              )}
+                            </HStack>
+                            
+                            {downloadInfo.status === 'downloading' && (
+                              <Text fontSize="xs" color="fg.muted">
+                                {formatSpeed((downloadInfo as any).download_speed || downloadInfo.download_speed || 0)}/с
+                              </Text>
+                            )}
+                          </HStack>
+                          
+                          {downloadInfo.status === 'downloading' && (
+                            <Box w="full" bg="gray.100" borderRadius="md" h="2">
+                              <Box 
+                                w={`${downloadInfo.progress || 0}%`}
+                                bg="blue.400"
+                                borderRadius="md"
+                                h="full"
+                                transition="width 0.3s"
+                              />
+                            </Box>
+                          )}
+                          
+                          {downloadInfo.status === 'downloading' && (
+                            <HStack justify="space-between" mt={2}>
+                              <Text fontSize="xs" color="fg.muted">
+                                {formatFileSize((downloadInfo as any).downloaded_bytes || downloadInfo.downloaded_size || 0)} / {formatFileSize((downloadInfo as any).total_bytes || downloadInfo.total_size || 0)}
+                              </Text>
+                              <Text fontSize="xs" color="fg.muted">
+                                ETA: {formatETA((downloadInfo as any).eta || 0)}
+                              </Text>
+                            </HStack>
+                          )}
+                        </Box>
+                      )}
+
+                      {/* Game Description */}
+                      <Text 
+                        fontSize="sm" 
+                        color="fg.muted"
+                        css={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        {game.description}
+                      </Text>
+
+                      {/* Actions */}
+                      <HStack gap={2} pt={2}>
+                        {downloadInfo && downloadInfo.status === 'downloading' && (
+                          <>
+                            <Button size="xs" colorScheme="orange" variant="solid" onClick={() => pauseGameDownload(downloadInfo.id)}>
+                              <Icon name="pause" size={14} style={{ marginRight: '4px' }} />
+                              Пауза
+                            </Button>
+                            <Button size="xs" colorScheme="red" variant="solid" onClick={() => cancelGameDownload(downloadInfo.id)}>
+                              <Icon name="close" size={14} style={{ marginRight: '4px' }} />
+                              Отмена
+                            </Button>
+                          </>
+                        )}
+                        {downloadInfo && downloadInfo.status === 'paused' && (
+                          <Button size="xs" colorScheme="green" onClick={() => resumeGameDownload(downloadInfo.id)}>
+                            <Icon name="play" size={14} style={{ marginRight: '4px' }} />
+                            Продолжить
+                          </Button>
+                        )}
+                        {downloadInfo && downloadInfo.status === 'completed' && (
+                          <Button size="xs" colorScheme="blue">
+                            <Icon name="gamepad" size={14} style={{ marginRight: '4px' }} />
+                            Играть
+                          </Button>
+                        )}
+                        {!downloadInfo && (
+                          <Text fontSize="xs" color="fg.muted">
+                            Игра добавлена в библиотеку
+                          </Text>
+                        )}
                       </HStack>
                     </VStack>
-
-                    <Text fontSize="sm" color="gray.600" css={{
-                      overflow: 'hidden',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical'
-                    }}>
-                      {game.description}
-                    </Text>
-
-                    {/* Progress Bar */}
-                    {game.download?.status === 'downloading' && game.download?.progress !== undefined && (
-                      <Box>
-                        <HStack justify="space-between" mb={1}>
-                          <Text fontSize="xs" color="gray.600">Прогресс</Text>
-                          <Text fontSize="xs" color="gray.600">{game.download.progress}%</Text>
-                        </HStack>
-                        <Box bg="gray.200" borderRadius="full" h={2}>
-                          <Box
-                            bg="blue.500"
-                            h={2}
-                            borderRadius="full"
-                            width={`${game.download.progress}%`}
-                            transition="width 0.3s"
-                          />
-                        </Box>
-                      </Box>
-                    )}
-
-                    {/* Action Buttons */}
-                    <HStack gap={2}>
-                      {game.download?.status === 'completed' && (
-                        <Button size="sm" colorScheme="green" flex={1}>
-                          ▶ Запустить
-                        </Button>
-                      )}
-                      {game.download?.status === 'downloading' && (
-                        <Button size="sm" colorScheme="red" flex={1} onClick={() => handleAction(game.id, 'pause')}>
-                          ⏸ Пауза
-                        </Button>
-                      )}
-                      {game.download?.status === 'paused' && (
-                        <Button size="sm" colorScheme="blue" flex={1} onClick={() => handleAction(game.id, 'resume')}>
-                          ⏵ Возобновить
-                        </Button>
-                      )}
-                      <Button size="sm" variant="outline" flex={1}>
-                        ⚙ Управление
-                      </Button>
-                    </HStack>
-                  </VStack>
-                </Box>
-              ))}
+                  </Box>
+                )
+              })}
             </SimpleGrid>
           )}
         </VStack>
       </Box>
+
+      {/* Edit Modal */}
+      {isEditModalOpen && editingGame && (
+        <Box 
+          position="fixed" 
+          top={0} 
+          left={0} 
+          right={0} 
+          bottom={0} 
+          bg="blackAlpha.50" 
+          display="flex" 
+          alignItems="center" 
+          justifyContent="center"
+          zIndex={20}
+        >
+          <Box bg="bg.surface" p={4} borderRadius="lg" maxW="md" w="full" mx={4}>
+            <VStack gap={3} align="stretch">
+              <Heading size="md">Редактировать игру</Heading>
+              
+              <Input
+                placeholder="Название игры"
+                value={gameFormData.title}
+                onChange={(e) => setGameFormData({...gameFormData, title: e.target.value})}
+              />
+              
+              <Input
+                placeholder="Жанр"
+                value={gameFormData.genre}
+                onChange={(e) => setGameFormData({...gameFormData, genre: e.target.value})}
+              />
+              
+              <Textarea
+                placeholder="Описание"
+                value={gameFormData.description}
+                onChange={(e) => setGameFormData({...gameFormData, description: e.target.value})}
+                rows={3}
+              />
+              
+              <Input
+                placeholder="URL изображения"
+                value={gameFormData.image_url}
+                onChange={(e) => setGameFormData({...gameFormData, image_url: e.target.value})}
+              />
+              
+              <HStack gap={3}>
+                <BrandButton intent="primary" onClick={handleUpdateGame} flex={1}>
+                  Сохранить
+                </BrandButton>
+                <BrandButton intent="secondary" onClick={closeEditModal} flex={1}>
+                  Отмена
+                </BrandButton>
+              </HStack>
+            </VStack>
+          </Box>
+        </Box>
+      )}
     </Box>
   )
 }

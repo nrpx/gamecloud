@@ -38,18 +38,20 @@ type Download struct {
 	ID               uuid.UUID `json:"id" gorm:"type:uuid;primary_key"`
 	UserID           string    `json:"user_id" gorm:"not null;index"`
 	GameID           uuid.UUID `json:"game_id" gorm:"type:uuid;not null"`
-	Game             Game      `json:"game" gorm:"foreignKey:GameID"`
+	Game             Game      `json:"game" gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
 	TorrentURL       string    `json:"torrent_url"`
 	MagnetURL        string    `json:"magnet_url"`
+	TorrentID        string    `json:"torrent_id"` // ID от торрент-клиента
 	Status           string    `json:"status"` // pending, downloading, completed, failed, paused, seeding
 	Progress         float64   `json:"progress"` // 0.0 to 100.0
 	DownloadSpeed    int64     `json:"download_speed"` // bytes per second
 	UploadSpeed      int64     `json:"upload_speed"` // bytes per second
-	TotalSize        int64     `json:"total_size"` // total size in bytes
-	DownloadedSize   int64     `json:"downloaded_size"` // downloaded size in bytes
+	TotalBytes       int64     `json:"total_bytes"` // total size in bytes
+	DownloadedBytes  int64     `json:"downloaded_bytes"` // downloaded size in bytes
 	PeersConnected   int       `json:"peers_connected"`
 	SeedsConnected   int       `json:"seeds_connected"`
-	ETA              int64     `json:"eta"` // seconds
+	ETA              int64     `json:"eta"` // seconds remaining
+	InfoHash         string    `json:"info_hash"` // торрент info hash
 	Error            string    `json:"error,omitempty"`
 	StartedAt        *time.Time `json:"started_at,omitempty"`
 	CompletedAt      *time.Time `json:"completed_at,omitempty"`
@@ -77,6 +79,27 @@ type User struct {
 func (u *User) BeforeCreate(tx *gorm.DB) error {
 	if u.ID == uuid.Nil {
 		u.ID = uuid.New()
+	}
+	return nil
+}
+
+type UserSettings struct {
+	ID             uuid.UUID `json:"id" gorm:"type:uuid;primary_key"`
+	UserID         string    `json:"user_id" gorm:"unique;not null;index"`
+	DownloadPath   string    `json:"download_path" gorm:"default:'/home/user/Downloads/Games'"`
+	MaxDownloads   int       `json:"max_downloads" gorm:"default:3"`
+	UploadLimit    int       `json:"upload_limit" gorm:"default:1000"` // KB/s, 0 = unlimited
+	AutoStart      bool      `json:"auto_start" gorm:"default:true"`
+	Notifications  bool      `json:"notifications" gorm:"default:true"`
+	Theme          string    `json:"theme" gorm:"default:'system'"` // system, light, dark
+	Language       string    `json:"language" gorm:"default:'ru'"` // ru, en
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+func (us *UserSettings) BeforeCreate(tx *gorm.DB) error {
+	if us.ID == uuid.Nil {
+		us.ID = uuid.New()
 	}
 	return nil
 }

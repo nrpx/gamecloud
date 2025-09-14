@@ -18,6 +18,7 @@ func Initialize(dbPath string) (*gorm.DB, error) {
 		&models.Game{},
 		&models.Download{},
 		&models.User{},
+		&models.UserSettings{},
 	)
 	if err != nil {
 		return nil, err

@@ -4,13 +4,14 @@ import (
 	"gamecloud/internal/config"
 	"gamecloud/internal/download"
 	"gamecloud/internal/middleware"
+	websocketPkg "gamecloud/internal/websocket"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func SetupRoutes(router *gin.Engine, db *gorm.DB, downloadManager *download.Manager, cfg *config.Config) {
+func SetupRoutes(router *gin.Engine, db *gorm.DB, downloadManager *download.Manager, cfg *config.Config, wsHub *websocketPkg.Hub) {
 	// CORS middleware
 	router.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -34,6 +35,9 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, downloadManager *download.Mana
 	api := router.Group("/api/v1")
 	api.Use(middleware.JWTAuthMiddleware(cfg.JWTSecret))
 	{
+		// WebSocket endpoint для real-time обновлений
+		api.GET("/ws", wsHub.HandleWebSocket)
+		
 		// Games routes
 		games := api.Group("/games")
 		{
@@ -41,7 +45,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, downloadManager *download.Mana
 			games.GET("/:id", getGame(db))
 			games.POST("", createGame(db))
 			games.PUT("/:id", updateGame(db))
-			games.DELETE("/:id", deleteGame(db))
+			games.DELETE("/:id", deleteGame(db, downloadManager))
 		}
 
 		// Library route (games with download info)
@@ -52,11 +56,12 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, downloadManager *download.Mana
 		{
 			downloads.GET("", getDownloads(downloadManager))
 			downloads.GET("/:id", getDownload(downloadManager))
+			downloads.GET("/progress", getDownloadProgress(downloadManager))
 			downloads.POST("", createDownload(db, downloadManager))
 			downloads.POST("/torrent", createDownloadFromTorrentFile(db, downloadManager))
 			downloads.PUT("/:id/pause", pauseDownload(downloadManager))
 			downloads.PUT("/:id/resume", resumeDownload(downloadManager))
-			downloads.DELETE("/:id", cancelDownload(downloadManager))
+			downloads.DELETE("/:id", cancelDownload(db, downloadManager))
 		}
 
 		// Search routes
@@ -68,6 +73,13 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, downloadManager *download.Mana
 
 		// Statistics route
 		api.GET("/stats", getStats(db, downloadManager))
+		
+		// Settings routes
+		settings := api.Group("/settings")
+		{
+			settings.GET("", getUserSettings(db))
+			settings.PUT("", updateUserSettings(db))
+		}
 	}
 
 	// Public auth routes (no JWT required)

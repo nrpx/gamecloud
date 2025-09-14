@@ -1,148 +1,228 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
-import { 
-  Box, 
-  Flex, 
-  Heading, 
-  Text, 
-  Button, 
+import {
+  Box,
+  Container,
   VStack,
   HStack,
-  Badge,
-  Spinner
+  Text,
+  Button,
+  Flex,
+  SimpleGrid,
+  Spinner,
 } from '@chakra-ui/react'
-import Link from 'next/link'
+import { useSession, signOut } from 'next-auth/react'
+import { useState, useEffect } from 'react'
+import { AppHeader } from '@/components/ui/AppHeader'
+import { Icon } from '@/components/ui/Icon'
+import ChangePasswordForm from '@/components/ui/ChangePasswordForm'
+import EditProfileForm from '@/components/ui/EditProfileForm'
+import NotificationSettings from '@/components/ui/NotificationSettings'
+import { 
+  useStatsData, 
+  useStatsLoading, 
+  useStatsError, 
+  useFetchStats 
+} from '@/stores/statsStore'
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
+  const [activeTab, setActiveTab] = useState(0)
 
-  if (status === 'loading') {
+  // Получаем статистику из store
+  const stats = useStatsData()
+  const isStatsLoading = useStatsLoading()
+  const statsError = useStatsError()
+  const fetchStats = useFetchStats()
+
+  // Загружаем статистику при монтировании компонента
+  useEffect(() => {
+    if (session?.user) {
+      fetchStats()
+    }
+  }, [session, fetchStats])
+
+  if (!session?.user) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minH="100vh">
-        <VStack gap={4}>
-          <Spinner size="xl" />
-          <Text>Загрузка профиля...</Text>
-        </VStack>
+      <Box>
+        <AppHeader />
+        <Container maxW="container.lg" py={4}>
+          <Text>Пожалуйста, войдите в систему для просмотра профиля</Text>
+        </Container>
       </Box>
     )
   }
 
-  if (!session) {
-    return (
-      <Box maxW="md" mx="auto" mt={8} p={6} textAlign="center">
-        <Text>Вы не авторизованы. Пожалуйста, войдите в систему.</Text>
-      </Box>
-    )
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/auth/signin' })
   }
 
   return (
-    <Box minH="100vh" bg="gray.50">
-      {/* Header */}
-      <Box bg="white" shadow="sm" borderBottom="1px" borderColor="gray.200">
-        <Flex maxW="7xl" mx="auto" px={6} py={4} justify="space-between" align="center">
-          <HStack gap={4}>
-            <Link href="/">
-              <Button variant="ghost" size="sm">
-                ← Назад к главной
-              </Button>
-            </Link>
-            <Heading size="lg" color="blue.600">
-              Профиль пользователя
-            </Heading>
-          </HStack>
-        </Flex>
-      </Box>
-
-      {/* Profile Content */}
-      <Box maxW="4xl" mx="auto" px={6} py={8}>
-        <VStack gap={8} align="stretch">
-          {/* User Info Card */}
-          <Box p={8} bg="white" borderRadius="lg" shadow="sm">
-            <VStack gap={6} align="center">
+    <Box>
+      <AppHeader />
+      
+      <Container maxW="container.lg" py={4}>
+        <VStack gap={4} align="stretch">
+          {/* Заголовок профиля */}
+          <Box p={4} bg="bg.surface" borderRadius="lg" shadow="sm" border="1px" borderColor="border.muted">
+            <Flex direction={{ base: 'column', md: 'row' }} gap={4} align="center">
               <Box
-                w="120px"
-                h="120px"
+                w="80px"
+                h="80px"
                 borderRadius="full"
                 bg="blue.500"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
                 color="white"
-                fontSize="48px"
+                fontSize="32px"
                 fontWeight="bold"
               >
-                {session.user?.name?.charAt(0) || session.user.username?.charAt(0)}
+                {session.user.name?.charAt(0) || session.user.username?.charAt(0) || 'U'}
               </Box>
               
-              <VStack gap={2} textAlign="center">
-                <Heading size="xl">{session.user?.name}</Heading>
-                <Text fontSize="lg" color="gray.600">@{session.user.username}</Text>
-                <Badge colorScheme="green" size="lg" px={3} py={1}>
-                  {session.user.role}
-                </Badge>
-              </VStack>
-            </VStack>
-          </Box>
-
-          {/* Profile Details */}
-          <Box p={6} bg="white" borderRadius="lg" shadow="sm">
-            <Heading size="lg" mb={6}>Информация о профиле</Heading>
-            <VStack gap={4} align="stretch">
-              <HStack justify="space-between">
-                <Text fontWeight="bold">ID пользователя:</Text>
-                <Text fontFamily="mono" bg="gray.100" px={2} py={1} borderRadius="md">
-                  {session.user?.id}
+              <VStack align={{ base: 'center', md: 'start' }} gap={2} flex="1">
+                <Text fontSize="2xl" fontWeight="bold">
+                  {session.user.name || 'Пользователь'}
                 </Text>
-              </HStack>
-              
-              <Box h="1px" bg="gray.200" />
-              
-              <HStack justify="space-between">
-                <Text fontWeight="bold">Имя:</Text>
-                <Text>{session.user?.name}</Text>
-              </HStack>
-              
-              <Box h="1px" bg="gray.200" />
-              
-              <HStack justify="space-between">
-                <Text fontWeight="bold">Имя пользователя:</Text>
-                <Text>@{session.user.username}</Text>
-              </HStack>
-              
-              <Box h="1px" bg="gray.200" />
-              
-              <HStack justify="space-between">
-                <Text fontWeight="bold">Email:</Text>
-                <Text>{session.user?.email}</Text>
-              </HStack>
-              
-              <Box h="1px" bg="gray.200" />
-              
-              <HStack justify="space-between">
-                <Text fontWeight="bold">Роль:</Text>
-                <Badge colorScheme="green">{session.user.role}</Badge>
-              </HStack>
-            </VStack>
+                <Text color="fg.muted" fontSize="md">
+                  {session.user.email}
+                </Text>
+                <Text color="fg.muted" fontSize="sm">
+                  Роль: {session.user.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                </Text>
+              </VStack>
+
+              <Button
+                colorScheme="red"
+                variant="outline"
+                onClick={handleLogout}
+                size="sm"
+              >
+                Выйти из системы
+              </Button>
+            </Flex>
           </Box>
 
-          {/* Profile Actions */}
-          <Box p={6} bg="white" borderRadius="lg" shadow="sm">
-            <Heading size="lg" mb={6}>Действия профиля</Heading>
-            <VStack gap={4} align="stretch">
-              <Button colorScheme="blue" size="lg">
-                Редактировать профиль
-              </Button>
-              <Button variant="outline" size="lg">
-                Изменить пароль
-              </Button>
-              <Button variant="outline" size="lg">
-                Настройки уведомлений
-              </Button>
-            </VStack>
+          {/* Быстрая статистика */}
+          {statsError && (
+            <Box p={4} bg="red.50" borderRadius="lg" border="1px" borderColor="red.200">
+              <Text color="red.600" fontSize="sm">
+                ⚠️ Ошибка загрузки статистики: {statsError}
+              </Text>
+            </Box>
+          )}
+          
+          <SimpleGrid columns={{ base: 1, md: 3 }} gap={4}>
+            <Box p={4} bg="blue.50" borderRadius="lg" border="1px" borderColor="blue.200">
+              <VStack gap={1}>
+                                {isStatsLoading ? (
+                  <Spinner size="md" color="blue.600" />
+                ) : (
+                  <Text fontSize="2xl" fontWeight="bold" color="blue.600">
+                    {stats?.total_games || 0}
+                  </Text>
+                )}
+                <Text fontSize="sm" color="blue.600">Игр в библиотеке</Text>
+              </VStack>
+            </Box>
+            <Box p={4} bg="green.50" borderRadius="lg" border="1px" borderColor="green.200">
+              <VStack gap={1}>
+                {isStatsLoading ? (
+                  <Spinner size="md" color="green.600" />
+                ) : (
+                  <Text fontSize="2xl" fontWeight="bold" color="green.600">
+                    {stats?.completed_downloads || 0}
+                  </Text>
+                )}
+                <Text fontSize="sm" color="green.600">Завершённых загрузок</Text>
+              </VStack>
+            </Box>
+            <Box p={4} bg="purple.50" borderRadius="lg" border="1px" borderColor="purple.200">
+              <VStack gap={1}>
+                {isStatsLoading ? (
+                  <Spinner size="md" color="purple.600" />
+                ) : (
+                  <Text fontSize="2xl" fontWeight="bold" color="purple.600">
+                    {stats?.active_downloads || 0}
+                  </Text>
+                )}
+                <Text fontSize="sm" color="purple.600">Активных загрузки</Text>
+              </VStack>
+            </Box>
+          </SimpleGrid>
+
+          {/* Навигация по секциям */}
+          <HStack gap={2} justify="center" flexWrap="wrap">
+            <Button
+              onClick={() => setActiveTab(0)}
+              colorScheme={activeTab === 0 ? 'blue' : 'gray'}
+              variant={activeTab === 0 ? 'solid' : 'outline'}
+              size="sm"
+            >
+              <Icon name="user" size={16} style={{ marginRight: '6px' }} />
+              Профиль
+            </Button>
+            <Button
+              onClick={() => setActiveTab(1)}
+              colorScheme={activeTab === 1 ? 'blue' : 'gray'}
+              variant={activeTab === 1 ? 'solid' : 'outline'}
+              size="sm"
+            >
+              <Icon name="settings" size={16} style={{ marginRight: '6px' }} />
+              Безопасность
+            </Button>
+            <Button
+              onClick={() => setActiveTab(2)}
+              colorScheme={activeTab === 2 ? 'blue' : 'gray'}
+              variant={activeTab === 2 ? 'solid' : 'outline'}
+              size="sm"
+            >
+              <Icon name="notification" size={16} style={{ marginRight: '6px' }} />
+              Уведомления
+            </Button>
+          </HStack>
+
+          {/* Содержимое секций */}
+          {activeTab === 0 && (
+            <EditProfileForm 
+              onSuccess={() => {
+                // Можно добавить обновление данных
+              }}
+              onCancel={() => {
+                // Можно добавить сброс формы
+              }}
+            />
+          )}
+
+          {activeTab === 1 && (
+            <ChangePasswordForm 
+              onSuccess={() => {
+                // Можно добавить уведомление об успехе
+              }}
+            />
+          )}
+
+          {activeTab === 2 && (
+            <NotificationSettings 
+              onSuccess={() => {
+                // Можно добавить уведомление об успехе
+              }}
+            />
+          )}
+
+          {/* Дополнительная информация */}
+          <Box p={4} bg="bg.page" borderRadius="lg">
+            <Text fontSize="sm" color="fg.muted" textAlign="center">
+              Последний вход: {new Date().toLocaleString('ru-RU')} • 
+              Версия приложения: 1.0.0 • 
+              <Text as="span" color="blue.500" cursor="pointer" ml={1}>
+                Поддержка
+              </Text>
+            </Text>
           </Box>
         </VStack>
-      </Box>
+      </Container>
     </Box>
   )
 }

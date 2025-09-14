@@ -15,6 +15,7 @@ import {
   Badge,
   Spinner
 } from '@chakra-ui/react'
+import { Icon } from '@/components/ui/Icon'
 import { formatFileSize } from '@/lib/api'
 import {
   useStatsStore,
@@ -71,13 +72,14 @@ export default function GameCloudApp() {
   }
 
   return (
-    <Box minH="100vh" bg="gray.50">
+    <Box minH="100vh" bg="bg.page">
       {/* Header */}
-      <Box bg="white" shadow="sm" borderBottom="1px" borderColor="gray.200">
+      <Box bg="bg.surface" shadow="sm" borderBottom="1px" borderColor="border.muted">
         <Flex maxW="7xl" mx="auto" px={6} py={4} justify="space-between" align="center">
           <HStack gap={4}>
             <Heading size="lg" color="blue.600">
-              🎮 GameCloud
+              <Icon name="gamepad" size={28} style={{ marginRight: '8px', display: 'inline' }} />
+              GameCloud
             </Heading>
             <Badge colorScheme="blue" variant="subtle">
               v1.0
@@ -88,7 +90,7 @@ export default function GameCloudApp() {
           <Flex align="center" gap={4}>
             <VStack gap={0} align="end">
               <Text fontWeight="bold" fontSize="sm">{session.user?.name}</Text>
-              <Text fontSize="xs" color="gray.500">@{session.user.username}</Text>
+              <Text fontSize="xs" color="fg.muted">@{session.user.username}</Text>
             </VStack>
             <Badge size="sm" colorScheme="green">{session.user.role}</Badge>
             <Link href="/profile">
@@ -112,7 +114,7 @@ export default function GameCloudApp() {
               <Heading size="xl" mb={2}>
                 Добро пожаловать, {session.user?.name}!
               </Heading>
-              <Text fontSize="lg" color="gray.600">
+              <Text fontSize="lg" color="fg.muted">
                 Управляйте своей игровой библиотекой
               </Text>
             </Box>
@@ -127,7 +129,7 @@ export default function GameCloudApp() {
                 🔄 Обновить статистику
               </Button>
               {stats && (
-                <Text fontSize="xs" color="gray.500">
+                <Text fontSize="xs" color="fg.muted">
                   Кэш действует 5 минут
                 </Text>
               )}
@@ -143,44 +145,44 @@ export default function GameCloudApp() {
           ) : error ? (
             <Box textAlign="center" py={8}>
               <Text color="red.500" fontSize="lg">⚠️ Ошибка загрузки статистики</Text>
-              <Text color="gray.500" mt={2}>{error}</Text>
+              <Text color="fg.muted" mt={2}>{error}</Text>
               <Button mt={4} onClick={() => fetchStats()} size="sm" colorScheme="blue">
                 Попробовать снова
               </Button>
             </Box>
           ) : (
             <Grid templateColumns="repeat(auto-fit, minmax(250px, 1fr))" gap={6}>
-              <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+              <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
                 <VStack align="start" gap={2}>
                   <Heading size="md" color="blue.600">Библиотека игр</Heading>
-                  <Text fontSize="3xl" fontWeight="bold">{stats?.totalGames || 0}</Text>
-                  <Text color="gray.500">игр в коллекции</Text>
+                  <Text fontSize="3xl" fontWeight="bold">{stats?.total_games || 0}</Text>
+                  <Text color="fg.muted">игр в коллекции</Text>
                 </VStack>
               </Box>
               
-              <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+              <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
                 <VStack align="start" gap={2}>
                   <Heading size="md" color="green.600">Активные загрузки</Heading>
-                  <Text fontSize="3xl" fontWeight="bold">{stats?.activeDownloads || 0}</Text>
-                  <Text color="gray.500">скачивается сейчас</Text>
+                  <Text fontSize="3xl" fontWeight="bold">{stats?.active_downloads || 0}</Text>
+                  <Text color="fg.muted">скачивается сейчас</Text>
                 </VStack>
               </Box>
               
-              <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+              <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
                 <VStack align="start" gap={2}>
                   <Heading size="md" color="purple.600">Всего загрузок</Heading>
-                  <Text fontSize="3xl" fontWeight="bold">{stats?.totalDownloads || 0}</Text>
-                  <Text color="gray.500">загрузок выполнено</Text>
+                  <Text fontSize="3xl" fontWeight="bold">{stats?.completed_downloads || 0}</Text>
+                  <Text color="fg.muted">загрузок выполнено</Text>
                 </VStack>
               </Box>
               
-              <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+              <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
                 <VStack align="start" gap={2}>
                   <Heading size="md" color="orange.600">Объем данных</Heading>
                   <Text fontSize="3xl" fontWeight="bold">
-                    {stats?.totalSize || '0 B'}
+                    {stats?.total_downloaded_size ? formatFileSize(stats.total_downloaded_size) : '0 B'}
                   </Text>
-                  <Text color="gray.500">загружено всего</Text>
+                  <Text color="fg.muted">загружено всего</Text>
                 </VStack>
               </Box>
             </Grid>
@@ -199,7 +201,7 @@ export default function GameCloudApp() {
                   gap={1}
                   w="full"
                 >
-                  <Text fontSize="lg">📁</Text>
+                  <Icon name="add" size={24} />
                   <Text>Добавить игру</Text>
                   <Text fontSize="sm" opacity={0.8}>Загрузить новую игру</Text>
                 </Button>
@@ -214,7 +216,7 @@ export default function GameCloudApp() {
                   gap={1}
                   w="full"
                 >
-                  <Text fontSize="lg">🔍</Text>
+                  <Icon name="search" size={24} />
                   <Text>Поиск игр</Text>
                   <Text fontSize="sm" opacity={0.8}>Найти в каталоге</Text>
                 </Button>
@@ -229,7 +231,7 @@ export default function GameCloudApp() {
                   gap={1}
                   w="full"
                 >
-                  <Text fontSize="lg">⚙️</Text>
+                  <Icon name="settings" size={24} />
                   <Text>Настройки</Text>
                   <Text fontSize="sm" opacity={0.8}>Конфигурация системы</Text>
                 </Button>
@@ -244,7 +246,7 @@ export default function GameCloudApp() {
                   gap={1}
                   w="full"
                 >
-                  <Text fontSize="lg">🌐</Text>
+                  <Icon name="cloud" size={24} />
                   <Text>Торренты</Text>
                   <Text fontSize="sm" opacity={0.8}>Управление загрузками</Text>
                 </Button>
@@ -259,7 +261,7 @@ export default function GameCloudApp() {
                   gap={1}
                   w="full"
                 >
-                  <Text fontSize="lg">🎮</Text>
+                  <Icon name="library" size={24} />
                   <Text>Моя библиотека</Text>
                   <Text fontSize="sm" opacity={0.8}>Управление играми</Text>
                 </Button>
@@ -270,8 +272,8 @@ export default function GameCloudApp() {
           {/* Recent Activity */}
           <Box>
             <Heading size="lg" mb={4}>Последняя активность</Heading>
-            <Box p={6} bg="white" borderRadius="lg" shadow="sm">
-              <Text color="gray.500" textAlign="center" py={8}>
+            <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
+              <Text color="fg.muted" textAlign="center" py={8}>
                 Пока нет активности. Добавьте первую игру!
               </Text>
             </Box>

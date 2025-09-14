@@ -2,6 +2,7 @@
 
 import { ChakraProvider, defaultSystem } from '@chakra-ui/react'
 import { SessionProvider } from 'next-auth/react'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 
 export function Providers({ 
   children,
@@ -13,7 +14,9 @@ export function Providers({
   return (
     <SessionProvider session={session}>
       <ChakraProvider value={defaultSystem}>
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </ChakraProvider>
     </SessionProvider>
   )

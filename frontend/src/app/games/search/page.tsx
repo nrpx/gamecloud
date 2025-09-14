@@ -13,6 +13,7 @@ import {
   Grid,
   Flex
 } from '@chakra-ui/react'
+import { Icon } from '@/components/ui/Icon'
 
 export default function SearchGamesPage() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -25,9 +26,9 @@ export default function SearchGamesPage() {
   }
 
   return (
-    <Box minH="100vh" bg="gray.50">
+    <Box minH="100vh" bg="bg.page">
       {/* Header */}
-      <Box bg="white" shadow="sm" borderBottom="1px" borderColor="gray.200">
+      <Box bg="bg.surface" shadow="sm" borderBottom="1px" borderColor="border.muted">
         <Flex maxW="7xl" mx="auto" px={6} py={4} justify="space-between" align="center">
           <HStack gap={4}>
             <Link href="/">
@@ -36,7 +37,8 @@ export default function SearchGamesPage() {
               </Button>
             </Link>
             <Heading size="lg" color="blue.600">
-              🔍 Поиск игр
+              <Icon name="search" size={28} style={{ marginRight: '8px', display: 'inline' }} />
+              Поиск игр
             </Heading>
           </HStack>
         </Flex>
@@ -46,7 +48,7 @@ export default function SearchGamesPage() {
       <Box maxW="6xl" mx="auto" px={6} py={8}>
         <VStack gap={8} align="stretch">
           {/* Search Form */}
-          <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+          <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
             <VStack gap={4} align="stretch">
               <Heading size="md">Найти игры</Heading>
               <form onSubmit={handleSearch}>
@@ -71,7 +73,7 @@ export default function SearchGamesPage() {
           </Box>
 
           {/* Search Filters */}
-          <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+          <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
             <Heading size="md" mb={4}>Фильтры</Heading>
             <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={4}>
               <VStack align="start">
@@ -90,14 +92,14 @@ export default function SearchGamesPage() {
           </Box>
 
           {/* Search Results */}
-          <Box p={6} bg="white" borderRadius="lg" shadow="sm">
+          <Box p={6} bg="bg.surface" borderRadius="lg" shadow="sm">
             <Heading size="md" mb={4}>Результаты поиска</Heading>
             {searchResults.length === 0 ? (
               <Box textAlign="center" py={12}>
-                <Text fontSize="lg" color="gray.500" mb={4}>
+                <Text fontSize="lg" color="fg.muted" mb={4}>
                   Введите запрос для поиска игр
                 </Text>
-                <Text color="gray.400">
+                <Text color="fg.muted">
                   Используйте поисковую строку выше
                 </Text>
               </Box>
