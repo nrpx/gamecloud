@@ -10,7 +10,7 @@ import {
 } from '@chakra-ui/react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useTheme } from '@/contexts/ThemeContext'
+import { ColorModeButton } from './color-mode'
 import { Icon } from './Icon'
 
 interface AppHeaderProps {
@@ -29,7 +29,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const { data: session } = useSession()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
-  const { theme, setTheme, effectiveTheme } = useTheme()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,33 +39,28 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     await signOut({ callbackUrl: '/' })
   }
 
-  const handleToggleTheme = () => {
-    const newTheme = effectiveTheme === 'dark' ? 'light' : 'dark'
-    setTheme(newTheme)
-  }
-
   return (
     <Box 
       as="header"
       borderBottom="1px solid"
-      borderColor={{ base: "gray.200", _dark: "gray.700" }}
-      bg={{ base: "white", _dark: "gray.800" }}
+      borderColor="border"
+      bg="bg.surface"
       position="sticky"
       top={0}
       zIndex={1000}
     >
-      <Container maxW="container.xl" py={2} bg={{ base: "white", _dark: "gray.800" }}>
+      <Container maxW="container.xl" py={2} bg="bg.surface">
         <Flex maxW="7xl" mx="auto" px={6} py={4} justify="space-between" align="center">
           <HStack gap={4}>
             <Link href="/">
               <Button
                 variant="ghost"
                 size="md"
-                color={{ base: "indigo.600", _dark: "indigo.400" }}
+                color="gamecloud.primary"
                 fontSize="xl"
                 fontWeight="bold"
                 _hover={{ 
-                  bg: { base: "indigo.50", _dark: "indigo.900" }
+                  bg: "bg.muted"
                 }}
               >
                 <HStack gap={2}>
@@ -77,8 +71,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             </Link>
             {title && (
               <>
-                <Text color={{ base: "gray.400", _dark: "gray.500" }}>|</Text>
-                <Heading size="md" color={{ base: "gray.700", _dark: "gray.300" }}>
+                <Text color="border.emphasized">|</Text>
+                <Heading size="md" color="fg">
                   {title}
                 </Heading>
               </>
@@ -92,13 +86,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   placeholder="Поиск игр..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  bg={{ base: "white", _dark: "gray.800" }}
+                  bg="bg"
                   border="1px solid"
-                  borderColor={{ base: "gray.300", _dark: "gray.600" }}
+                  borderColor="border"
                   _focus={{ 
-                    borderColor: { base: "indigo.500", _dark: "indigo.400" },
-                    bg: { base: "white", _dark: "gray.800" },
-                    boxShadow: { base: "0 0 0 1px indigo.500", _dark: "0 0 0 1px indigo.400" }
+                    borderColor: "gamecloud.primary",
+                    bg: "bg",
+                    boxShadow: "0 0 0 1px var(--chakra-colors-gamecloud-primary)"
                   }}
                 />
               </form>
@@ -140,14 +134,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               </Link>
             </HStack>
 
-            <Button
-              variant="ghost"
-              size="xs"
-              title={`Переключить тему (сейчас: ${effectiveTheme === 'dark' ? 'тёмная' : 'светлая'})`}
-              onClick={handleToggleTheme}
-            >
-              <Icon name={effectiveTheme === 'dark' ? 'light' : 'dark'} size={24} />
-            </Button>
+            <ColorModeButton size="xs" />
 
             {session && (
               <HStack gap={2}>
@@ -172,8 +159,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   size="sm"
                   onClick={handleSignOut}
                   title="Выйти"
-                  color={{ base: "red.600", _dark: "red.400" }}
-                  _hover={{ bg: { base: "red.50", _dark: "red.900" } }}
+                  color="red.solid"
+                  _hover={{ bg: "red.subtle" }}
                 >
                   <Icon name="user" size={16} />
                 </Button>

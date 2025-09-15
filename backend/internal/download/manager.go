@@ -8,6 +8,9 @@ import (
 	"gamecloud/internal/torrent"
 	"io"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -124,11 +127,34 @@ func (m *Manager) AddTorrentFile(download *models.Download, torrentFile io.Reade
 		return fmt.Errorf("failed to save download to database: %w", err)
 	}
 
+	// Сохраняем торрент-файл на диск для возможности перезапуска
+	torrentFilePath := filepath.Join(m.cfg.TorrentConfig.DownloadDir, download.TorrentURL)
+	
+	// Создаем директорию если её нет
+	if err := os.MkdirAll(filepath.Dir(torrentFilePath), 0755); err != nil {
+		log.Printf("Failed to create torrent directory: %v", err)
+	}
+	
+	// Читаем данные в буфер
+	data, err := io.ReadAll(torrentFile)
+	if err != nil {
+		download.Status = "failed"
+		download.Error = fmt.Sprintf("Failed to read torrent file: %v", err)
+		m.db.Save(download)
+		return fmt.Errorf("failed to read torrent file: %w", err)
+	}
+	
+	// Сохраняем файл на диск
+	if err := os.WriteFile(torrentFilePath, data, 0644); err != nil {
+		log.Printf("Failed to save torrent file to disk: %v", err)
+		// Не критично, продолжаем
+	}
+
 	// Создаем контекст для управления загрузкой
 	ctx, cancel := context.WithCancel(context.Background())
 	
-	// Запускаем торрент из файла
-	torrentID, progressChan, err := m.torrentClient.AddTorrentFile(torrentFile, m.cfg.TorrentConfig.DownloadDir)
+	// Запускаем торрент из данных в памяти
+	torrentID, progressChan, err := m.torrentClient.AddTorrentFile(strings.NewReader(string(data)), m.cfg.TorrentConfig.DownloadDir)
 	if err != nil {
 		// Обновляем статус ошибки в БД
 		download.Status = "failed"
@@ -232,7 +258,7 @@ func (m *Manager) ResumeDownload(id uuid.UUID) error {
 	return nil
 }
 
-func (m *Manager) CancelDownload(id uuid.UUID, db *gorm.DB) error {
+func (m *Manager) CancelDownload(id uuid.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -252,13 +278,10 @@ func (m *Manager) CancelDownload(id uuid.UUID, db *gorm.DB) error {
 		// Удаляем из активных загрузок
 		delete(m.downloads, id)
 		delete(m.progressChans, job.TorrentID)
-		
-		// Удаляем из БД
-		return db.Delete(&models.Download{}, "id = ?", id).Error
 	}
 	
-	// Если загрузка не активна, просто удаляем из БД
-	return db.Delete(&models.Download{}, "id = ?", id).Error
+	// Не удаляем из БД - это должен делать вызывающий код
+	return nil
 }
 
 func (m *Manager) worker(workerID int) {
@@ -310,9 +333,31 @@ func (m *Manager) processDownload(download *models.Download, workerID int) {
 	var err error
 
 	if download.MagnetURL != "" {
+		// Используем magnet ссылку
 		torrentID, progressChan, err = m.torrentClient.AddMagnet(download.MagnetURL, m.cfg.TorrentConfig.DownloadDir)
 	} else if download.TorrentURL != "" {
-		torrentID, progressChan, err = m.torrentClient.AddTorrentURL(download.TorrentURL, m.cfg.TorrentConfig.DownloadDir)
+		// Проверяем, является ли TorrentURL действительным URL или именем файла
+		if strings.HasPrefix(download.TorrentURL, "http://") || strings.HasPrefix(download.TorrentURL, "https://") {
+			// Это URL - скачиваем торрент-файл
+			torrentID, progressChan, err = m.torrentClient.AddTorrentURL(download.TorrentURL, m.cfg.TorrentConfig.DownloadDir)
+		} else {
+			// Это имя файла - торрент уже был загружен ранее, но задача потеряна
+			// Пытаемся найти файл в Downloads директории
+			torrentFilePath := filepath.Join(m.cfg.TorrentConfig.DownloadDir, download.TorrentURL)
+			log.Printf("Worker %d: Trying to load torrent file from: %s", workerID, torrentFilePath)
+			
+			if file, err := os.Open(torrentFilePath); err == nil {
+				defer file.Close()
+				torrentID, progressChan, err = m.torrentClient.AddTorrentFile(file, m.cfg.TorrentConfig.DownloadDir)
+			} else {
+				log.Printf("Worker %d: Torrent file not found: %s", workerID, torrentFilePath)
+				download.Status = "failed"
+				download.Error = fmt.Sprintf("Torrent file not found: %s", download.TorrentURL)
+				m.db.Save(download)
+				cancel()
+				return
+			}
+		}
 	} else {
 		log.Printf("Worker %d: No magnet URL or torrent URL provided", workerID)
 		download.Status = "failed"

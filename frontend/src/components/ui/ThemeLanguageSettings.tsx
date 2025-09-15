@@ -8,7 +8,8 @@ import {
   Button,
 } from '@chakra-ui/react'
 import { Icon } from './Icon'
-import { useTheme } from '@/contexts/ThemeContext'
+import { useColorMode } from './color-mode'
+import { useTheme } from 'next-themes'
 
 const themeOptions = [
   { value: 'light', label: 'Светлая', icon: '☀️' },
@@ -22,7 +23,22 @@ const languageOptions = [
 ] as const
 
 export default function ThemeLanguageSettings() {
-  const { theme, language, setTheme, setLanguage, effectiveTheme } = useTheme()
+  const { theme, setTheme, resolvedTheme } = useTheme()
+  
+  // Пока просто используем localStorage для языка
+  const getCurrentLanguage = () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('gamecloud-language') || 'ru'
+    }
+    return 'ru'
+  }
+  
+  const setLanguage = (lang: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('gamecloud-language', lang)
+      // Можно добавить перезагрузку страницы или обновление интерфейса
+    }
+  }
 
   return (
     <VStack gap={6} align="stretch">
@@ -34,7 +50,7 @@ export default function ThemeLanguageSettings() {
               🎨 Тема оформления
             </Text>
             <Text fontSize="sm" color="fg.muted">
-              (Текущая: {effectiveTheme === 'light' ? 'светлая' : 'темная'})
+              (Текущая: {resolvedTheme === 'light' ? 'светлая' : 'темная'})
             </Text>
           </HStack>
           
@@ -57,8 +73,8 @@ export default function ThemeLanguageSettings() {
             ))}
           </VStack>
 
-          <Box p={3} bg={effectiveTheme === 'dark' ? 'gray.700' : 'gray.50'} borderRadius="md">
-            <Text fontSize="sm" color={effectiveTheme === 'dark' ? 'gray.300' : 'gray.600'}>
+          <Box p={3} bg="bg.muted" borderRadius="md">
+            <Text fontSize="sm" color="fg.muted">
               💡 Предварительный просмотр: Этот блок показывает, как будет выглядеть интерфейс в выбранной теме
             </Text>
           </Box>
@@ -78,8 +94,8 @@ export default function ThemeLanguageSettings() {
             {languageOptions.map((option) => (
               <Button
                 key={option.value}
-                variant={language === option.value ? "solid" : "outline"}
-                colorScheme={language === option.value ? "green" : "gray"}
+                variant={getCurrentLanguage() === option.value ? "solid" : "outline"}
+                colorScheme={getCurrentLanguage() === option.value ? "green" : "gray"}
                 onClick={() => setLanguage(option.value)}
                 size="sm"
                 justifyContent="flex-start"
@@ -93,8 +109,8 @@ export default function ThemeLanguageSettings() {
             ))}
           </VStack>
 
-          <Box p={3} bg="blue.50" borderRadius="md">
-            <Text fontSize="sm" color="blue.600">
+          <Box p={3} bg="blue.subtle" borderRadius="md">
+            <Text fontSize="sm" color="blue.fg">
               ℹ️ Изменение языка будет применено после перезагрузки страницы
             </Text>
           </Box>

@@ -31,16 +31,25 @@ export interface CreateGame {
 
 export interface Download {
   id: string
+  user_id: string
   game_id: string
   game?: Game
   torrent_url?: string
   magnet_url?: string
-  status: 'queued' | 'downloading' | 'completed' | 'failed' | 'paused'
+  torrent_id?: string
+  status: 'pending' | 'queued' | 'downloading' | 'completed' | 'failed' | 'paused' | 'seeding' | 'error'
   progress: number
-  speed?: number
+  download_speed?: number
+  upload_speed?: number
+  total_bytes?: number
+  downloaded_bytes?: number
+  peers_connected?: number
+  seeds_connected?: number
   eta?: number
+  info_hash?: string
   error?: string
   started_at?: string
+  completed_at?: string
   created_at?: string
   updated_at?: string
 }

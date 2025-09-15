@@ -144,10 +144,8 @@ func deleteGame(db *gorm.DB, dm *download.Manager) gin.HandlerFunc {
 		// Отменяем активные downloads через download manager
 		for _, download := range downloads {
 			if download.Status == "downloading" || download.Status == "pending" || download.Status == "paused" {
-				if err := dm.CancelDownload(download.ID, db); err != nil {
-					// Логируем ошибку но продолжаем удаление
-					// TODO: добавить proper logging
-					_ = err
+				if err := dm.CancelDownload(download.ID); err != nil {
+					log.Printf("Failed to cancel download %s: %v", download.ID, err)
 				}
 			}
 		}
@@ -398,10 +396,8 @@ func cancelDownload(db *gorm.DB, dm *download.Manager) gin.HandlerFunc {
 		}
 
 		// Отменяем загрузку в download manager
-		if err := dm.CancelDownload(id, db); err != nil {
-			// Логируем ошибку но не прерываем выполнение, так как запись в БД может существовать
-			// даже если загрузка уже не активна в download manager
-			_ = err
+		if err := dm.CancelDownload(id); err != nil {
+			log.Printf("Failed to cancel download in manager: %v", err)
 		}
 
 		// Удаляем запись из базы данных

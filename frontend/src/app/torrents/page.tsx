@@ -148,7 +148,10 @@ export default function TorrentsPage() {
       case 'seeding': return 'green'
       case 'completed': return 'green'
       case 'paused': return 'orange'
-      case 'error': return 'red'
+      case 'error':
+      case 'failed': return 'red'
+      case 'pending':
+      case 'queued': return 'gray'
       default: return 'gray'
     }
   }
@@ -159,7 +162,10 @@ export default function TorrentsPage() {
       case 'seeding': return 'Раздается'
       case 'completed': return 'Завершено'
       case 'paused': return 'Пауза'
-      case 'error': return 'Ошибка'
+      case 'error': 
+      case 'failed': return 'Ошибка'
+      case 'pending':
+      case 'queued': return 'В очереди'
       default: return 'Неизвестно'
     }
   }
@@ -256,11 +262,11 @@ export default function TorrentsPage() {
             </Box>
           </HStack>
 
-          {/* Torrents Table */}
-          <Box bg="bg.surface" borderRadius="lg" shadow="sm" overflow="hidden">
-            <Box p={4} borderBottom="1px" borderColor="border.muted">
-              <Heading size="md">Активные торренты</Heading>
-            </Box>
+            {/* Torrents Table */}
+            <Box bg="bg.surface" borderRadius="lg" shadow="sm" overflow="hidden">
+              <Box p={4} borderBottom="2px" borderColor="border.emphasized">
+                <Heading size="md">Активные торренты</Heading>
+              </Box>
             
             {!isInitialized || isLoading ? (
               <Box textAlign="center" py={12}>
@@ -287,24 +293,24 @@ export default function TorrentsPage() {
             ) : (
               <Box overflow="auto">
                 <Box as="table" w="full" borderCollapse="collapse" style={{ tableLayout: 'fixed' }}>
-                  <Box as="thead">
+                  <Box as="thead" bg="bg.muted">
                     <Box as="tr">
-                      <Box as="th" textAlign="left" p={3} borderBottom="1px" borderColor="border.muted" fontSize="sm" fontWeight="bold" w="300px">Название</Box>
-                      <Box as="th" textAlign="left" p={3} borderBottom="1px" borderColor="border.muted" fontSize="sm" fontWeight="bold" w="120px">Статус</Box>
-                      <Box as="th" textAlign="left" p={3} borderBottom="1px" borderColor="border.muted" fontSize="sm" fontWeight="bold" w="150px">Прогресс</Box>
-                      <Box as="th" textAlign="left" p={3} borderBottom="1px" borderColor="border.muted" fontSize="sm" fontWeight="bold" w="120px">Скорость</Box>
-                      <Box as="th" textAlign="left" p={3} borderBottom="1px" borderColor="border.muted" fontSize="sm" fontWeight="bold" w="100px">Размер</Box>
-                      <Box as="th" textAlign="left" p={3} borderBottom="1px" borderColor="border.muted" fontSize="sm" fontWeight="bold" w="80px">S/L</Box>
-                      <Box as="th" textAlign="left" p={3} borderBottom="1px" borderColor="border.muted" fontSize="sm" fontWeight="bold" w="100px">Рейтинг</Box>
-                      <Box as="th" textAlign="left" p={3} borderBottom="1px" borderColor="border.muted" fontSize="sm" fontWeight="bold" w="150px">Действия</Box>
+                      <Box as="th" textAlign="left" p={3} borderBottom="2px" borderColor="border.emphasized" fontSize="sm" fontWeight="bold" w="300px">Название</Box>
+                      <Box as="th" textAlign="left" p={3} borderBottom="2px" borderColor="border.emphasized" fontSize="sm" fontWeight="bold" w="120px">Статус</Box>
+                      <Box as="th" textAlign="left" p={3} borderBottom="2px" borderColor="border.emphasized" fontSize="sm" fontWeight="bold" w="150px">Прогресс</Box>
+                      <Box as="th" textAlign="left" p={3} borderBottom="2px" borderColor="border.emphasized" fontSize="sm" fontWeight="bold" w="120px">Скорость</Box>
+                      <Box as="th" textAlign="left" p={3} borderBottom="2px" borderColor="border.emphasized" fontSize="sm" fontWeight="bold" w="100px">Размер</Box>
+                      <Box as="th" textAlign="left" p={3} borderBottom="2px" borderColor="border.emphasized" fontSize="sm" fontWeight="bold" w="80px">S/L</Box>
+                      <Box as="th" textAlign="left" p={3} borderBottom="2px" borderColor="border.emphasized" fontSize="sm" fontWeight="bold" w="100px">Рейтинг</Box>
+                      <Box as="th" textAlign="left" p={3} borderBottom="2px" borderColor="border.emphasized" fontSize="sm" fontWeight="bold" w="150px">Действия</Box>
                     </Box>
                   </Box>
                   <Box as="tbody">
                     {downloads.map((download) => {
                       const enhancedDownload = getEnhancedDownload(download);
                       return (
-                        <Box as="tr" key={download.id} _hover={{ bg: 'gray.50' }}>
-                          <Box as="td" p={3} borderBottom="1px" borderColor="border.subtle" w="300px">
+                        <Box as="tr" key={download.id} _hover={{ bg: 'bg.subtle' }} transition="background-color 0.2s">
+                          <Box as="td" p={3} borderBottom="1px" borderColor="border.muted" w="300px">
                             <VStack align="start" gap={1}>
                               <Text css={{
                                 overflow: 'hidden',
@@ -321,17 +327,29 @@ export default function TorrentsPage() {
                               )}
                             </VStack>
                           </Box>
-                          <Box as="td" p={3} borderBottom="1px" borderColor="border.subtle" w="120px">
-                            <Badge colorScheme={getStatusColor(enhancedDownload.status)}>
-                              {getStatusText(enhancedDownload.status)}
-                            </Badge>
+                          <Box as="td" p={3} borderBottom="1px" borderColor="border.muted" w="120px">
+                            <VStack gap={1} align="start">
+                              <Badge colorScheme={getStatusColor(enhancedDownload.status)}>
+                                {getStatusText(enhancedDownload.status)}
+                              </Badge>
+                              {(enhancedDownload.status === 'failed' || enhancedDownload.status === 'error') && download.error && (
+                                <Text fontSize="xs" color="red.600" title={download.error} css={{
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  maxWidth: '100px'
+                                }}>
+                                  {download.error.length > 30 ? download.error.substring(0, 30) + '...' : download.error}
+                                </Text>
+                              )}
+                            </VStack>
                           </Box>
-                          <Box as="td" p={3} borderBottom="1px" borderColor="border.subtle" w="150px">
+                          <Box as="td" p={3} borderBottom="1px" borderColor="border.muted" w="150px">
                             <VStack gap={1} align="start">
                               <Text fontSize="sm">{enhancedDownload.progress.toFixed(1)}%</Text>
-                              <Box w="100px" bg="gray.200" borderRadius="full" h={2}>
+                              <Box w="100px" bg="bg.muted" borderRadius="full" h={2}>
                                 <Box
-                                  bg={getStatusColor(enhancedDownload.status) === 'blue' ? 'blue.500' : 'green.500'}
+                                  bg={getStatusColor(enhancedDownload.status) === 'blue' ? 'blue.solid' : 'green.solid'}
                                   h={2}
                                   borderRadius="full"
                                   width={`${Math.min(100, Math.max(0, enhancedDownload.progress))}%`}
@@ -340,12 +358,12 @@ export default function TorrentsPage() {
                               </Box>
                             </VStack>
                           </Box>
-                          <Box as="td" p={3} borderBottom="1px" borderColor="border.subtle" w="120px">
+                          <Box as="td" p={3} borderBottom="1px" borderColor="border.muted" w="120px">
                             <VStack align="start" gap={1}>
-                              <Text fontSize="sm" color="blue.600">
+                              <Text fontSize="sm" color="blue.solid">
                                 ↓ {formatSpeed(enhancedDownload.download_speed)}
                               </Text>
-                              <Text fontSize="sm" color="orange.600">
+                              <Text fontSize="sm" color="orange.solid">
                                 ↑ {formatSpeed(enhancedDownload.upload_speed)}
                               </Text>
                               <Text fontSize="xs" color="fg.muted">
@@ -353,7 +371,7 @@ export default function TorrentsPage() {
                               </Text>
                             </VStack>
                           </Box>
-                          <Box as="td" p={3} borderBottom="1px" borderColor="border.subtle" w="100px">
+                          <Box as="td" p={3} borderBottom="1px" borderColor="border.muted" w="100px">
                             <VStack align="start" gap={1}>
                               <Text fontSize="sm">{formatBytes(enhancedDownload.total_size)}</Text>
                               <Text fontSize="xs" color="fg.muted">
@@ -361,41 +379,79 @@ export default function TorrentsPage() {
                               </Text>
                             </VStack>
                           </Box>
-                          <Box as="td" p={3} borderBottom="1px" borderColor="border.subtle" w="80px">
+                          <Box as="td" p={3} borderBottom="1px" borderColor="border.muted" w="80px">
                             <VStack align="start" gap={1}>
                               <HStack>
                                 <Text fontSize="xs" color="fg.muted">Seeds:</Text>
-                                <Text fontSize="sm" color="green.600">{enhancedDownload.seeds_connected || 0}</Text>
+                                <Text fontSize="sm" color="green.solid">{enhancedDownload.seeds_connected || 0}</Text>
                               </HStack>
                               <HStack>
                                 <Text fontSize="xs" color="fg.muted">Peers:</Text>
-                                <Text fontSize="sm" color="blue.600">{enhancedDownload.peers_connected || 0}</Text>
+                                <Text fontSize="sm" color="blue.solid">{enhancedDownload.peers_connected || 0}</Text>
                               </HStack>
                             </VStack>
                           </Box>
-                          <Box as="td" p={3} borderBottom="1px" borderColor="border.subtle" w="100px">
-                            <Text fontSize="sm" fontWeight="normal" color="orange.600">
+                          <Box as="td" p={3} borderBottom="1px" borderColor="border.muted" w="100px">
+                            <Text fontSize="sm" fontWeight="normal" color="orange.solid">
                               {enhancedDownload.total_size > 0 ? 
                                 ((enhancedDownload.downloaded_size / enhancedDownload.total_size) * 100).toFixed(1) + '%' : '0.0%'}
                             </Text>
                           </Box>
-                          <Box as="td" p={3} borderBottom="1px" borderColor="border.subtle" w="150px">
+                          <Box as="td" p={3} borderBottom="1px" borderColor="border.muted" w="150px">
                             <HStack gap={1}>
                               {enhancedDownload.status === 'downloading' && (
-                                <Button size="xs" colorScheme="orange" 
-                                        onClick={() => handleAction(download.id, 'pause')}>
-                                  <Icon name="pause" size={16} />
+                                <Button 
+                                  size="xs" 
+                                  variant="solid"
+                                  colorScheme="orange" 
+                                  onClick={() => handleAction(download.id, 'pause')}
+                                  title="Приостановить"
+                                  bg="orange.solid"
+                                  color="white"
+                                  _hover={{ bg: "orange.emphasized" }}
+                                >
+                                  <Icon name="pause" size={14} />
                                 </Button>
                               )}
-                              {enhancedDownload.status === 'paused' && (
-                                <Button size="xs" colorScheme="green" 
-                                        onClick={() => handleAction(download.id, 'resume')}>
-                                  <Icon name="play" size={16} />
+                              {(enhancedDownload.status === 'paused' || enhancedDownload.status === 'failed' || enhancedDownload.status === 'error') && (
+                                <Button 
+                                  size="xs" 
+                                  variant="solid"
+                                  colorScheme="green" 
+                                  onClick={() => handleAction(download.id, 'resume')}
+                                  title={enhancedDownload.status === 'failed' || enhancedDownload.status === 'error' ? 'Перезапустить' : 'Возобновить'}
+                                  bg="green.solid"
+                                  color="white"
+                                  _hover={{ bg: "green.emphasized" }}
+                                >
+                                  <Icon name="play" size={14} />
                                 </Button>
                               )}
-                              <Button size="xs" colorScheme="red" 
-                                      onClick={() => handleAction(download.id, 'cancel')}>
-                                <Icon name="stop" size={16} />
+                              {(enhancedDownload.status === 'pending' || enhancedDownload.status === 'queued') && (
+                                <Button 
+                                  size="xs" 
+                                  variant="solid"
+                                  colorScheme="blue" 
+                                  onClick={() => handleAction(download.id, 'resume')}
+                                  title="Запустить"
+                                  bg="blue.solid"
+                                  color="white"
+                                  _hover={{ bg: "blue.emphasized" }}
+                                >
+                                  <Icon name="play" size={14} />
+                                </Button>
+                              )}
+                              <Button 
+                                size="xs" 
+                                variant="solid"
+                                colorScheme="red" 
+                                onClick={() => handleAction(download.id, 'cancel')}
+                                title="Отменить"
+                                bg="red.solid"
+                                color="white"
+                                _hover={{ bg: "red.emphasized" }}
+                              >
+                                <Icon name="stop" size={14} />
                               </Button>
                             </HStack>
                           </Box>
