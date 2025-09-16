@@ -1,7 +1,7 @@
 'use client'
 
 import { useSession, signOut } from 'next-auth/react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { 
   Box, 
@@ -27,9 +27,11 @@ import {
   useClearStats
 } from '@/stores/statsStore'
 import SignInForm from './SignInForm'
+import AddGameModal from './AddGameModal'
 
 export default function GameCloudApp() {
   const { data: session, status } = useSession()
+  const [isAddGameModalOpen, setIsAddGameModalOpen] = useState(false)
   
   // Используем отдельные Zustand hooks
   const stats = useStatsData()
@@ -192,22 +194,21 @@ export default function GameCloudApp() {
           <Box>
             <Heading size="lg" mb={4}>Быстрые действия</Heading>
             <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={4}>
-              <Link href="/games/add">
-                <Button 
-                  size="lg" 
-                  colorScheme="blue" 
-                  h="80px"
-                  flexDirection="column"
-                  gap={1}
-                  w="full"
-                >
-                  <Icon name="add" size={24} />
-                  <Text>Добавить игру</Text>
-                  <Text fontSize="sm" opacity={0.8}>Загрузить новую игру</Text>
-                </Button>
-              </Link>
+              <Button 
+                size="lg" 
+                colorScheme="blue" 
+                h="80px"
+                flexDirection="column"
+                gap={1}
+                w="full"
+                onClick={() => setIsAddGameModalOpen(true)}
+              >
+                <Icon name="add" size={24} />
+                <Text>Добавить игру</Text>
+                <Text fontSize="sm" opacity={0.8}>Загрузить новую игру</Text>
+              </Button>
               
-              <Link href="/games/search">
+              <Link href="/games">
                 <Button 
                   size="lg" 
                   colorScheme="green" 
@@ -218,7 +219,7 @@ export default function GameCloudApp() {
                 >
                   <Icon name="search" size={24} />
                   <Text>Поиск игр</Text>
-                  <Text fontSize="sm" opacity={0.8}>Найти в каталоге</Text>
+                  <Text fontSize="sm" opacity={0.8}>В библиотеке игр</Text>
                 </Button>
               </Link>
               
@@ -237,7 +238,7 @@ export default function GameCloudApp() {
                 </Button>
               </Link>
               
-              <Link href="/torrents">
+              <Link href="/games">
                 <Button 
                   size="lg" 
                   colorScheme="orange" 
@@ -247,7 +248,7 @@ export default function GameCloudApp() {
                   w="full"
                 >
                   <Icon name="cloud" size={24} />
-                  <Text>Торренты</Text>
+                  <Text>Загрузки</Text>
                   <Text fontSize="sm" opacity={0.8}>Управление загрузками</Text>
                 </Button>
               </Link>
@@ -280,6 +281,12 @@ export default function GameCloudApp() {
           </Box>
         </VStack>
       </Box>
+      
+      {/* Add Game Modal */}
+      <AddGameModal 
+        isOpen={isAddGameModalOpen}
+        onClose={() => setIsAddGameModalOpen(false)}
+      />
     </Box>
   )
 }

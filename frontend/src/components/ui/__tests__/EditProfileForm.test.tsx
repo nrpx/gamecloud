@@ -22,6 +22,7 @@ global.fetch = mockFetch
 describe('EditProfileForm Component', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    jest.useFakeTimers()
     mockUseSession.mockReturnValue({
       data: {
         user: {
@@ -34,6 +35,10 @@ describe('EditProfileForm Component', () => {
       status: 'authenticated',
       update: mockUpdate
     })
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
   })  // Тест 1: Рендеринг формы с данными пользователя
   it('renders form with user data', () => {
     render(
@@ -62,7 +67,7 @@ describe('EditProfileForm Component', () => {
     fireEvent.click(submitButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/имя не может быть пустым/i)).toBeInTheDocument()
+      expect(screen.getByText(/это поле обязательно для заполнения/i)).toBeInTheDocument()
     })
   })
 
@@ -81,11 +86,37 @@ describe('EditProfileForm Component', () => {
       </TestWrapper>
     )
 
+    // Поскольку в DOM есть два пустых поля, используем более специфичный селектор
+    const inputs = screen.getAllByRole('textbox')
+    const nameField = inputs[0] // Первое поле - displayName
+    const emailField = inputs[1] // Второе поле - email
+    
+    // Вводим данные (это сделает форму dirty)
+    fireEvent.change(nameField, { target: { value: 'Updated User' } })
+    fireEvent.change(emailField, { target: { value: 'updated@example.com' } })
+
     const submitButton = screen.getByRole('button', { name: /сохранить/i })
+    
+    // Теперь кнопка должна быть активна
+    await waitFor(() => {
+      expect(submitButton).not.toBeDisabled()
+    })
+    
     fireEvent.click(submitButton)
+
+    // Продвигаем время для симуляции API запроса (1000ms)
+    jest.advanceTimersByTime(1000)
+    
+    // Ждем до обновления состояния
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalled()
+    })
+
+    // Продвигаем время для setTimeout onSuccess (2000ms)
+    jest.advanceTimersByTime(2000)
 
     await waitFor(() => {
       expect(mockOnSuccess).toHaveBeenCalled()
-    }, { timeout: 3000 })
+    })
   })
 })

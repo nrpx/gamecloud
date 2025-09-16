@@ -5,6 +5,11 @@ export default auth((req) => {
   const isAuth = !!req.auth
   const isAuthPage = req.nextUrl.pathname.startsWith('/auth/')
   
+  // Редирект со старой страницы торрентов на библиотеку
+  if (req.nextUrl.pathname === '/torrents') {
+    return Response.redirect(new URL('/games', req.url))
+  }
+  
   // Если пользователь не авторизован и пытается попасть на защищенную страницу
   if (!isAuth && !isAuthPage) {
     return Response.redirect(new URL('/auth/signin', req.url))

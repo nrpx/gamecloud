@@ -6,9 +6,11 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 var upgrader = websocket.Upgrader{
@@ -29,12 +31,13 @@ type Client struct {
 
 // Hub управляет WebSocket соединениями
 type Hub struct {
-	clients    map[*Client]bool
-	broadcast  chan []byte
-	register   chan *Client
-	unregister chan *Client
+	clients     map[*Client]bool
+	broadcast   chan []byte
+	register    chan *Client
+	unregister  chan *Client
 	userClients map[string][]*Client // группировка клиентов по пользователям
-	mu         sync.RWMutex
+	jwtSecret   string               // JWT secret для валидации токенов
+	mu          sync.RWMutex
 }
 
 // ProgressMessage представляет сообщение о прогрессе
@@ -44,14 +47,40 @@ type ProgressMessage struct {
 }
 
 // NewHub создаёт новый WebSocket hub
-func NewHub() *Hub {
+func NewHub(jwtSecret string) *Hub {
 	return &Hub{
 		clients:     make(map[*Client]bool),
 		broadcast:   make(chan []byte),
 		register:    make(chan *Client),
 		unregister:  make(chan *Client),
 		userClients: make(map[string][]*Client),
+		jwtSecret:   jwtSecret,
 	}
+}
+
+// validateJWTToken валидирует JWT токен и возвращает user_id
+func validateJWTToken(tokenString, jwtSecret string) (string, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(jwtSecret), nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		if userID, exists := claims["user_id"]; exists {
+			if userIDStr, ok := userID.(string); ok {
+				return userIDStr, nil
+			}
+		}
+		return "", fmt.Errorf("user_id not found in token")
+	}
+
+	return "", fmt.Errorf("invalid token")
 }
 
 // Run запускает главный цикл hub'а
@@ -140,30 +169,44 @@ func (h *Hub) BroadcastProgress(userID string, progress torrent.ProgressUpdate) 
 
 // HandleWebSocket обрабатывает WebSocket подключения
 func (h *Hub) HandleWebSocket(c *gin.Context) {
+	log.Printf("WebSocket: Connection attempt from %s", c.ClientIP())
+	
 	// Пытаемся получить user_id из контекста (если JWT middleware уже обработал)
 	userIDVal, exists := c.Get("user_id")
 	if !exists {
 		// Если нет в контексте, пытаемся извлечь из параметров запроса
 		token := c.Query("token")
 		if token == "" {
+			log.Printf("WebSocket: No token provided")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "No token provided"})
 			return
 		}
 		
-		// Здесь должна быть валидация токена, но для простоты используем заглушку
-		// В реальном проекте нужно проверять JWT токен
-		userID := "admin" // Заглушка - в реальности извлекать из токена
+		log.Printf("WebSocket: Validating token: %s...", token[:20])
+		
+		// Валидируем JWT токен
+		userID, err := validateJWTToken(token, h.jwtSecret)
+		if err != nil {
+			log.Printf("WebSocket authentication failed: %v", err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			return
+		}
+		
+		log.Printf("WebSocket: Token validated for user: %s", userID)
 		c.Set("user_id", userID)
 		userIDVal = userID
 	}
 	
 	userID := userIDVal.(string)
+	log.Printf("WebSocket: Upgrading connection for user: %s", userID)
 	
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade connection: %v", err)
+		log.Printf("Failed to upgrade WebSocket connection: %v", err)
 		return
 	}
+	
+	log.Printf("WebSocket: Successfully upgraded connection for user: %s", userID)
 	
 	client := &Client{
 		conn:   conn,
@@ -173,6 +216,7 @@ func (h *Hub) HandleWebSocket(c *gin.Context) {
 	}
 	
 	client.hub.register <- client
+	log.Printf("WebSocket: Registered client for user: %s", userID)
 	
 	// Запускаем горутины для чтения и записи
 	go client.writePump()

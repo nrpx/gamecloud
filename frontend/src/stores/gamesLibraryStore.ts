@@ -8,6 +8,14 @@ interface GameDownload {
   progress: number
   total_size: number
   downloaded_size: number
+  // Торрент-специфичная информация
+  download_speed?: number
+  upload_speed?: number
+  seeders?: number
+  leechers?: number
+  peers?: number
+  eta?: number
+  ratio?: number
 }
 
 interface GameWithDownload {
@@ -38,9 +46,9 @@ interface GamesLibraryState {
   refreshGames: () => Promise<void>
   updateGame: (gameId: string, gameData: Partial<GameWithDownload>) => Promise<void>
   deleteGame: (gameId: string) => Promise<void>
-  pauseGameDownload: (gameId: string) => Promise<void>
-  resumeGameDownload: (gameId: string) => Promise<void>
-  cancelGameDownload: (gameId: string) => Promise<void>
+  pauseGameDownload: (downloadId: string) => Promise<void>
+  resumeGameDownload: (downloadId: string) => Promise<void>
+  cancelGameDownload: (downloadId: string) => Promise<void>
   clearGames: () => void
   setError: (error: string | null) => void
 }
@@ -150,8 +158,21 @@ async function gameDownloadActionAPI(downloadId: string, action: 'pause' | 'resu
     throw new Error('No authentication token available')
   }
   
-  const response = await fetch(`/api/v1/downloads/${downloadId}/${action}`, {
-    method: 'POST',
+  let url: string
+  let method: string
+  
+  if (action === 'cancel') {
+    // Для отмены используем DELETE метод
+    url = `/api/v1/downloads/${downloadId}`
+    method = 'DELETE'
+  } else {
+    // Для pause/resume используем PUT метод
+    url = `/api/v1/downloads/${downloadId}/${action}`
+    method = 'PUT'
+  }
+  
+  const response = await fetch(url, {
+    method,
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -266,60 +287,45 @@ export const useGamesLibraryStore = create<GamesLibraryState>()(
       },
       
       // Пауза загрузки игры
-      pauseGameDownload: async (gameId: string) => {
+      pauseGameDownload: async (downloadId: string) => {
         try {
-          const game = get().games.find(g => g.id === gameId)
-          if (!game?.download) {
-            throw new Error('Game download not found')
-          }
-          
-          console.log('⏸ [GamesLibraryStore] Pausing game download:', gameId)
-          await gameDownloadActionAPI(game.download.id, 'pause')
+          console.log('⏸ [GamesLibraryStore] Pausing download with ID:', downloadId)
+          await gameDownloadActionAPI(downloadId, 'pause')
           // Обновляем данные после действия
           await get().refreshGames()
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-          console.error('🔴 [GamesLibraryStore] Error pausing game download:', errorMessage)
+          console.error('🔴 [GamesLibraryStore] Error pausing download:', errorMessage)
           set({ error: errorMessage })
           throw error
         }
       },
       
       // Возобновление загрузки игры
-      resumeGameDownload: async (gameId: string) => {
+      resumeGameDownload: async (downloadId: string) => {
         try {
-          const game = get().games.find(g => g.id === gameId)
-          if (!game?.download) {
-            throw new Error('Game download not found')
-          }
-          
-          console.log('▶️ [GamesLibraryStore] Resuming game download:', gameId)
-          await gameDownloadActionAPI(game.download.id, 'resume')
+          console.log('▶️ [GamesLibraryStore] Resuming download with ID:', downloadId)
+          await gameDownloadActionAPI(downloadId, 'resume')
           // Обновляем данные после действия
           await get().refreshGames()
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-          console.error('🔴 [GamesLibraryStore] Error resuming game download:', errorMessage)
+          console.error('🔴 [GamesLibraryStore] Error resuming download:', errorMessage)
           set({ error: errorMessage })
           throw error
         }
       },
       
       // Отмена загрузки игры
-      cancelGameDownload: async (gameId: string) => {
+      cancelGameDownload: async (downloadId: string) => {
         try {
-          const game = get().games.find(g => g.id === gameId)
-          if (!game?.download) {
-            throw new Error('Game download not found')
-          }
-          
-          console.log('🗑 [GamesLibraryStore] Canceling game download:', gameId)
-          await gameDownloadActionAPI(game.download.id, 'cancel')
+          console.log('🗑 [GamesLibraryStore] Canceling download with ID:', downloadId)
+          await gameDownloadActionAPI(downloadId, 'cancel')
           // Обновляем данные после действия
           await get().refreshGames()
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-          console.error('🔴 [GamesLibraryStore] Error canceling game download:', errorMessage)
+          console.error('🔴 [GamesLibraryStore] Error canceling download:', errorMessage)
           set({ error: errorMessage })
           throw error
         }

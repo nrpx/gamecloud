@@ -6,12 +6,21 @@ import {
   HStack,
   Text,
   Button,
-  Input,
-  Textarea,
 } from '@chakra-ui/react'
 import { Icon } from './Icon'
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
+import { useForm } from 'react-hook-form'
+import { showError, showSuccess } from '@/lib/toast'
+import { FormInput, FormTextarea } from '@/components/forms'
+import { VALIDATION_RULES } from '@/lib/validation'
+import { useFormSync } from '@/hooks/useFormIntegration'
+
+interface ProfileFormData {
+  displayName: string
+  email: string
+  bio: string
+}
 
 interface EditProfileFormProps {
   onSuccess?: () => void
@@ -20,49 +29,32 @@ interface EditProfileFormProps {
 
 export default function EditProfileForm({ onSuccess, onCancel }: EditProfileFormProps) {
   const { data: session, update } = useSession()
-  const [displayName, setDisplayName] = useState('')
-  const [email, setEmail] = useState('')
-  const [bio, setBio] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  
+  const form = useForm<ProfileFormData>({
+    defaultValues: {
+      displayName: '',
+      email: '',
+      bio: '',
+    },
+    mode: 'onBlur',
+  })
 
-  // Загружаем текущие данные пользователя
-  useEffect(() => {
-    if (session?.user) {
-      setDisplayName(session.user.name || '')
-      setEmail(session.user.email || '')
-      setBio('') // TODO: добавить поле bio в схему пользователя
-    }
-  }, [session])
+  const { handleSubmit, formState: { isSubmitting, isDirty } } = form
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+  // Мемоизируем данные для синхронизации, чтобы избежать бесконечного цикла
+  const syncData = useMemo(() => ({
+    displayName: session?.user?.name || '',
+    email: session?.user?.email || '',
+    bio: '', // TODO: добавить поле bio в схему пользователя
+  }), [session?.user?.name, session?.user?.email])
 
-    // Базовая валидация
-    if (!displayName.trim()) {
-      setError('Имя не может быть пустым')
-      return
-    }
+  // Синхронизируем форму с данными сессии
+  useFormSync(form, syncData)
 
-    if (!email.trim()) {
-      setError('Email не может быть пустым')
-      return
-    }
-
-    // Простая проверка email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      setError('Введите корректный email адрес')
-      return
-    }
-
-    setIsLoading(true)
-
+  const onSubmit = async (data: ProfileFormData) => {
     try {
       // TODO: Здесь будет API запрос для обновления профиля
-      // await userApi.updateProfile({ displayName, email, bio })
+      // await userApi.updateProfile(data)
       
       // Симуляция API запроса
       await new Promise(resolve => setTimeout(resolve, 1000))
@@ -72,33 +64,28 @@ export default function EditProfileForm({ onSuccess, onCancel }: EditProfileForm
         ...session,
         user: {
           ...session?.user,
-          name: displayName,
-          email: email,
+          name: data.displayName,
+          email: data.email,
         }
       })
       
-      setSuccess(true)
+      showSuccess('Профиль обновлен успешно!')
       setTimeout(() => {
         onSuccess?.()
-        setSuccess(false)
       }, 2000)
 
     } catch (err) {
-      setError('Ошибка при обновлении профиля. Попробуйте снова.')
-    } finally {
-      setIsLoading(false)
+      showError('Ошибка при обновлении профиля. Попробуйте снова.')
     }
   }
 
   const handleCancel = () => {
-    // Восстанавливаем исходные значения
-    if (session?.user) {
-      setDisplayName(session.user.name || '')
-      setEmail(session.user.email || '')
-      setBio('')
-    }
-    setError(null)
-    setSuccess(false)
+    // Сбрасываем форму к исходным значениям
+    form.reset({
+      displayName: session?.user?.name || '',
+      email: session?.user?.email || '',
+      bio: '',
+    })
     onCancel?.()
   }
 
@@ -110,64 +97,41 @@ export default function EditProfileForm({ onSuccess, onCancel }: EditProfileForm
           Редактировать профиль
         </Text>
 
-        {error && (
-          <Box p={3} bg="red.50" borderRadius="md" border="1px" borderColor="red.200">
-            <Text color="red.600" fontSize="sm">
-              ❌ {error}
-            </Text>
-          </Box>
-        )}
-
-        {success && (
-          <Box p={3} bg="green.50" borderRadius="md" border="1px" borderColor="green.200">
-            <Text color="green.600" fontSize="sm">
-              ✅ Профиль успешно обновлен!
-            </Text>
-          </Box>
-        )}
-
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <VStack gap={4} align="stretch">
-            <VStack align="stretch" gap={2}>
-              <Text fontWeight="medium">Отображаемое имя</Text>
-              <Input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Введите ваше имя"
-                disabled={isLoading}
-              />
-              <Text fontSize="xs" color="fg.muted">
-                Это имя будет отображаться в интерфейсе
-              </Text>
-            </VStack>
+            <FormInput
+              name="displayName"
+              label="Отображаемое имя"
+              placeholder="Введите ваше имя"
+              helperText="Это имя будет отображаться в интерфейсе"
+              form={form}
+              rules={VALIDATION_RULES.username}
+              isDisabled={isSubmitting}
+              isRequired
+            />
 
-            <VStack align="stretch" gap={2}>
-              <Text fontWeight="medium">Email адрес</Text>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your.email@example.com"
-                disabled={isLoading}
-              />
-              <Text fontSize="xs" color="fg.muted">
-                Используется для уведомлений и восстановления пароля
-              </Text>
-            </VStack>
+            <FormInput
+              name="email"
+              label="Email адрес"
+              type="email"
+              placeholder="your.email@example.com"
+              helperText="Используется для уведомлений и восстановления пароля"
+              form={form}
+              rules={VALIDATION_RULES.email}
+              isDisabled={isSubmitting}
+              isRequired
+            />
 
-            <VStack align="stretch" gap={2}>
-              <Text fontWeight="medium">Описание профиля</Text>
-              <Textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Расскажите немного о себе (необязательно)"
-                disabled={isLoading}
-                rows={3}
-              />
-              <Text fontSize="xs" color="fg.muted">
-                Краткое описание, которое будет видно другим пользователям
-              </Text>
-            </VStack>
+            <FormTextarea
+              name="bio"
+              label="Описание профиля"
+              placeholder="Расскажите немного о себе (необязательно)"
+              helperText="Краткое описание, которое будет видно другим пользователям"
+              form={form}
+              rules={VALIDATION_RULES.bio}
+              isDisabled={isSubmitting}
+              rows={3}
+            />
 
             <Box p={3} bg="blue.50" borderRadius="md">
               <Text fontSize="sm" color="blue.600">
@@ -182,8 +146,8 @@ export default function EditProfileForm({ onSuccess, onCancel }: EditProfileForm
               <Button
                 type="submit"
                 colorScheme="green"
-                loading={isLoading}
-                disabled={isLoading || success}
+                loading={isSubmitting}
+                disabled={isSubmitting || !isDirty}
                 flex="1"
               >
                 Сохранить изменения
@@ -191,7 +155,7 @@ export default function EditProfileForm({ onSuccess, onCancel }: EditProfileForm
               <Button
                 variant="outline"
                 onClick={handleCancel}
-                disabled={isLoading}
+                disabled={isSubmitting}
                 flex="1"
               >
                 Отменить

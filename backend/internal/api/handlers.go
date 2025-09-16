@@ -172,62 +172,6 @@ func deleteGame(db *gorm.DB, dm *download.Manager) gin.HandlerFunc {
 	}
 }
 
-// Library handlers
-func getLibrary(db *gorm.DB, dm *download.Manager) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var games []models.Game
-		if err := db.Find(&games).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		// Get all downloads to match with games
-		downloads, err := dm.GetAllDownloads()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		// Create a map of downloads by game ID for quick lookup
-		downloadsByGameID := make(map[string]interface{})
-		for _, download := range downloads {
-			downloadsByGameID[download.GameID.String()] = download
-		}
-
-		// Create library response with download information
-		library := make([]map[string]interface{}, 0)
-		for _, game := range games {
-			gameData := map[string]interface{}{
-				"id":          game.ID,
-				"title":       game.Title,
-				"description": game.Description,
-				"genre":       game.Genre,
-				"developer":   game.Developer,
-				"publisher":   game.Publisher,
-				"release_date": game.ReleaseDate,
-				"cover_url":   game.CoverURL,
-				"screenshots": game.Screenshots,
-				"image_url":   game.ImageURL,
-				"size":        game.Size,
-				"status":      game.Status,
-				"file_path":   game.FilePath,
-				"torrent_url": game.TorrentURL,
-				"created_at":  game.CreatedAt,
-				"updated_at":  game.UpdatedAt,
-			}
-
-			// Add download information if available
-			if download, exists := downloadsByGameID[game.ID.String()]; exists {
-				gameData["download"] = download
-			}
-
-			library = append(library, gameData)
-		}
-
-		c.JSON(http.StatusOK, library)
-	}
-}
-
 // Downloads handlers
 func getDownloads(dm *download.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -351,7 +295,7 @@ func getDownloadProgress(dm *download.Manager) gin.HandlerFunc {
 
 		// Получаем все активные загрузки
 		activeDownloads := dm.GetActiveDownloads()
-		
+
 		// Фильтруем по пользователю и формируем ответ
 		var progressList []gin.H
 		for _, job := range activeDownloads {
@@ -373,7 +317,7 @@ func getDownloadProgress(dm *download.Manager) gin.HandlerFunc {
 				progressList = append(progressList, progressInfo)
 			}
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"active_downloads": progressList,
 			"total_active":     len(progressList),
@@ -513,11 +457,11 @@ func createDownloadFromTorrentFile(db *gorm.DB, dm *download.Manager) gin.Handle
 
 		// Создаем download объект
 		download := models.Download{
-			UserID:      userID,
-			GameID:      gameID,
-			TorrentURL:  file.Filename,
-			Status:      "queued",
-			Progress:    0.0,
+			UserID:     userID,
+			GameID:     gameID,
+			TorrentURL: file.Filename,
+			Status:     "queued",
+			Progress:   0.0,
 		}
 
 		// Добавляем через новый метод для торрент-файлов
@@ -594,11 +538,11 @@ func getStats(db *gorm.DB, dm *download.Manager) gin.HandlerFunc {
 		// TODO: Добавить поле uploaded_size в модель Download
 
 		stats := gin.H{
-			"total_games":            totalGames,
-			"active_downloads":       activeDownloads,
-			"completed_downloads":    completedDownloads,
-			"total_downloaded_size":  totalDownloadedSize,
-			"total_upload_size":      totalUploadSize,
+			"total_games":           totalGames,
+			"active_downloads":      activeDownloads,
+			"completed_downloads":   completedDownloads,
+			"total_downloaded_size": totalDownloadedSize,
+			"total_upload_size":     totalUploadSize,
 		}
 
 		c.JSON(http.StatusOK, stats)
@@ -616,7 +560,7 @@ func getUserSettings(db *gorm.DB) gin.HandlerFunc {
 
 		var settings models.UserSettings
 		err := db.Where("user_id = ?", userID).First(&settings).Error
-		
+
 		if err == gorm.ErrRecordNotFound {
 			// Создаем настройки по умолчанию, если их нет
 			settings = models.UserSettings{
@@ -659,7 +603,7 @@ func updateUserSettings(db *gorm.DB) gin.HandlerFunc {
 		// Находим существующие настройки или создаем новые
 		var settings models.UserSettings
 		err := db.Where("user_id = ?", userID).First(&settings).Error
-		
+
 		if err == gorm.ErrRecordNotFound {
 			// Создаем новые настройки
 			settings = models.UserSettings{
@@ -688,7 +632,7 @@ func updateUserSettings(db *gorm.DB) gin.HandlerFunc {
 			settings.Notifications = updateData.Notifications
 			settings.Theme = updateData.Theme
 			settings.Language = updateData.Language
-			
+
 			if err := db.Save(&settings).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update settings"})
 				return
@@ -696,5 +640,45 @@ func updateUserSettings(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, settings)
+	}
+}
+
+// Library handler - returns games with download information
+func getLibrary(db *gorm.DB, downloadManager *download.Manager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, _, _, ok := middleware.GetUserFromContext(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
+			return
+		}
+
+		var games []models.Game
+		if err := db.Where("user_id = ?", userID).Find(&games).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Enrich games with download information
+		type GameWithDownload struct {
+			models.Game
+			Download *models.Download `json:"download,omitempty"`
+		}
+
+		var enrichedGames []GameWithDownload
+		for _, game := range games {
+			enrichedGame := GameWithDownload{Game: game}
+
+			// Find active download for this game
+			var download models.Download
+			if err := db.Where("game_id = ? AND user_id = ? AND status NOT IN ?",
+				game.ID, userID, []string{"completed", "cancelled"}).
+				Order("created_at DESC").First(&download).Error; err == nil {
+				enrichedGame.Download = &download
+			}
+
+			enrichedGames = append(enrichedGames, enrichedGame)
+		}
+
+		c.JSON(http.StatusOK, enrichedGames)
 	}
 }

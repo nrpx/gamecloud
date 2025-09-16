@@ -63,7 +63,7 @@ type TorrentInfo struct {
 	Status       string    `json:"status"`
 	MagnetLink   string    `json:"magnet_link"`
 	DownloadDir  string    `json:"download_dir"`
-	torrent      *torrent.Torrent
+	Torrent      *torrent.Torrent `json:"-"` // Экспортируем поле для внутреннего использования
 }
 
 func NewClient(cfg *config.TorrentConfig) (*Client, error) {
@@ -76,15 +76,41 @@ func NewClient(cfg *config.TorrentConfig) (*Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create download directory: %w", err)
 		}
-		// Используем правильный API для storage
+		
+		// Используем базовый storage без дополнительных слоев для избежания конфликтов
 		clientConfig.DefaultStorage = storage.NewFile(cfg.DownloadDir)
+		
+		// Альтернативно можно попробовать mmap storage (закомментировано)
+		// clientConfig.DefaultStorage = storage.NewMMap(cfg.DownloadDir)
 	}
 	
+	// Включаем seeding для поддержки сообщества
 	clientConfig.Seed = true
+	
+	// Отключаем debug логи для production
 	clientConfig.Debug = false
 	
-	// Увеличиваем лимиты для лучшей производительности  
-	clientConfig.MaxUnverifiedBytes = 64 << 20 // 64MB
+	// Включаем DHT для поиска пиров без трекеров
+	clientConfig.NoDHT = false
+	
+	// Включаем PEX для обмена пирами
+	clientConfig.DisablePEX = false
+	
+	// Включаем поддержку uTP (micro Transport Protocol)
+	clientConfig.DisableUTP = false
+	
+	// Более консервативные настройки для стабильности
+	clientConfig.MaxUnverifiedBytes = 16 << 20 // Уменьшаем до 16MB
+	
+	// Ограничиваем количество одновременных соединений для снижения нагрузки на диск
+	clientConfig.EstablishedConnsPerTorrent = 30
+	clientConfig.HalfOpenConnsPerTorrent = 15
+	
+	// Настройка таймаутов для стабильности
+	clientConfig.HandshakesTimeout = 20 * time.Second
+	
+	// Отключаем аггрессивную загрузку для снижения конкуренции за файлы
+	clientConfig.DisableAggressiveUpload = true
 	
 	// Создаем клиент
 	client, err := torrent.NewClient(clientConfig)
@@ -482,7 +508,7 @@ func (c *Client) GetTorrents() ([]*TorrentInfo, error) {
 				Progress:     float64(t.BytesCompleted()) / float64(t.Length()) * 100,
 				Status:       getStatus(t),
 				DownloadDir:  c.config.DownloadDir,
-				torrent:      t,
+				Torrent:      t, // Используем экспортированное поле
 			}
 			
 			infos = append(infos, info)
@@ -503,6 +529,64 @@ func (c *Client) GetActiveDownloads() map[string]*DownloadJob {
 	}
 	
 	return downloads
+}
+
+// GetExistingTorrents возвращает уже запущенные торренты из anacrolix/torrent клиента
+func (c *Client) GetExistingTorrents() []*TorrentInfo {
+	torrents := c.client.Torrents()
+	var infos []*TorrentInfo
+	
+	for _, t := range torrents {
+		if t.Info() != nil {
+			stats := t.Stats()
+			
+			info := &TorrentInfo{
+				InfoHash:     t.InfoHash().String(),
+				Name:         t.Name(),
+				Size:         t.Length(),
+				Downloaded:   t.BytesCompleted(),
+				DownloadRate: stats.ConnStats.BytesReadData.Int64(),
+				UploadRate:   stats.ConnStats.BytesWrittenData.Int64(),
+				Progress:     float64(t.BytesCompleted()) / float64(t.Length()) * 100,
+				Status:       getStatus(t),
+				DownloadDir:  c.config.DownloadDir,
+				Torrent:      t, // Используем экспортированное поле
+			}
+			
+			infos = append(infos, info)
+		}
+	}
+	
+	return infos
+}
+
+// RestoreDownloadFromTorrent восстанавливает DownloadJob для существующего торрента
+func (c *Client) RestoreDownloadFromTorrent(t *torrent.Torrent, downloadID string) (string, chan ProgressUpdate, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	
+	// Создаем контекст для управления загрузкой
+	ctx, cancel := context.WithCancel(context.Background())
+	
+	// Создаем задачу загрузки
+	job := &DownloadJob{
+		ID:       downloadID,
+		Torrent:  t,
+		Progress: make(chan ProgressUpdate, 100),
+		Done:     make(chan struct{}),
+		Error:    make(chan error, 1),
+		ctx:      ctx,
+		cancel:   cancel,
+	}
+	
+	c.downloads[downloadID] = job
+	
+	// Запускаем мониторинг в отдельной горутине
+	go c.monitorProgress(job)
+	
+	log.Printf("Restored download monitoring for existing torrent: %s", t.Name())
+	
+	return downloadID, job.Progress, nil
 }
 
 func getStatus(t *torrent.Torrent) string {

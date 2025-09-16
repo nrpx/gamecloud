@@ -8,15 +8,29 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 export interface Game {
   id: string
   title: string
-  description: string
+  description?: string
   genre: string
-  release_date?: string
   developer?: string
   publisher?: string
+  release_year?: number
+  release_date?: string
+  
+  // SteamGridDB изображения
+  grid_image_url?: string     // 460x215 grid изображение
+  hero_image_url?: string     // 1920x620 hero изображение 
+  logo_image_url?: string     // прозрачный логотип
+  icon_image_url?: string     // иконка 32x32
+  steamgriddb_id?: string     // ID игры в SteamGridDB
+  
+  // Устаревшие поля для обратной совместимости
   image_url?: string
+  cover_url?: string
+  
+  // Торрент информация
   torrent_url: string
   magnet_link?: string
   file_size?: number
+  
   created_at: string
   updated_at: string
 }

@@ -69,7 +69,7 @@ export function useWebSocket() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('WebSocket: Connected successfully');
+        console.log('WebSocket: Connected successfully to', wsUrl);
         setIsConnected(true);
         setLastError(null);
       };
@@ -77,7 +77,6 @@ export function useWebSocket() {
       ws.onmessage = (event) => {
         try {
           const message: ProgressMessage = JSON.parse(event.data);
-          console.log('WebSocket: Received message', message);
           
           if (message.type === 'download_progress') {
             setProgressUpdates(prev => {
@@ -92,12 +91,23 @@ export function useWebSocket() {
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket: Error occurred', error);
-        setLastError('WebSocket connection error');
+        console.error('WebSocket: Error occurred', {
+          error,
+          readyState: ws.readyState,
+          url: wsUrl,
+          timestamp: new Date().toISOString()
+        });
+        setLastError(`WebSocket connection error (readyState: ${ws.readyState})`);
       };
 
       ws.onclose = (event) => {
-        console.log('WebSocket: Connection closed', event.code, event.reason);
+        console.log('WebSocket: Connection closed', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+          url: wsUrl,
+          timestamp: new Date().toISOString()
+        });
         setIsConnected(false);
         wsRef.current = null;
 

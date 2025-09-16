@@ -18,16 +18,43 @@ import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/stores/gameStore'
 import { useDownloadStore } from '@/stores/downloadStore'
 import { AppHeader } from '@/components/ui/AppHeader'
+import { showError } from '@/lib/toast'
 
 export default function StatsPage() {
   const router = useRouter()
-  const { games, fetchGames } = useGameStore()
-  const { downloads, fetchDownloads } = useDownloadStore()
+  const { games, fetchGames, error: gamesError } = useGameStore()
+  const { downloads, fetchDownloads, error: downloadsError } = useDownloadStore()
 
   useEffect(() => {
     fetchGames()
     fetchDownloads()
   }, [fetchGames, fetchDownloads])
+
+  // Уведомления об ошибках загрузки данных
+  useEffect(() => {
+    if (gamesError) {
+      showError('Ошибка загрузки игр. Попробуйте обновить страницу.')
+    }
+  }, [gamesError])
+
+  useEffect(() => {
+    if (downloadsError) {
+      showError('Ошибка загрузки информации о загрузках. Попробуйте обновить страницу.')
+    }
+  }, [downloadsError])
+
+  // Error handling for data loading
+  useEffect(() => {
+    if (gamesError) {
+      showError(`Ошибка загрузки игр: ${gamesError}`)
+    }
+  }, [gamesError])
+
+  useEffect(() => {
+    if (downloadsError) {
+      showError(`Ошибка загрузки загрузок: ${downloadsError}`)
+    }
+  }, [downloadsError])
 
   const stats = {
     totalGames: games.length,

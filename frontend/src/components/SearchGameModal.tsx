@@ -13,6 +13,7 @@ import {
 import { useState } from 'react'
 import { useGameStore } from '@/stores/gameStore'
 import { Game } from '@/types'
+import { showError } from '@/lib/toast'
 
 interface SearchGameModalProps {
   isOpen: boolean
@@ -35,6 +36,7 @@ export default function SearchGameModal({ isOpen, onClose, onGameSelect }: Searc
       setSearchResults(results)
     } catch (error) {
       console.error('Search error:', error)
+      showError('Ошибка поиска игр. Попробуйте снова.')
     } finally {
       setIsSearching(false)
     }

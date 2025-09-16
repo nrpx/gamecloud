@@ -180,6 +180,20 @@ func (m *Manager) AddTorrentFile(download *models.Download, torrentFile io.Reade
 
 	// Запускаем мониторинг в отдельной горутине
 	go m.monitorDownloadProgress(job)
+	
+	// Обновляем InfoHash в БД после успешного создания торрента
+	activeDownloads := m.torrentClient.GetActiveDownloads()
+	if jobFromClient, exists := activeDownloads[torrentID]; exists && jobFromClient.Torrent != nil {
+		infoHash := jobFromClient.Torrent.InfoHash().String()
+		if infoHash != "" {
+			download.InfoHash = infoHash
+			if err := m.db.Save(download).Error; err != nil {
+				log.Printf("Failed to save InfoHash to database: %v", err)
+			} else {
+				log.Printf("Saved InfoHash %s for torrent file download %s", infoHash, download.Game.Title)
+			}
+		}
+	}
 
 	log.Printf("Started torrent download from file: %s", download.Game.Title)
 	return nil
@@ -391,6 +405,21 @@ func (m *Manager) processDownload(download *models.Download, workerID int) {
 
 	// Запускаем мониторинг в отдельной горутине
 	go m.monitorDownloadProgress(job)
+	
+	// Обновляем InfoHash в БД после успешного создания торрента
+	// Получаем торрент из клиента по torrentID
+	activeDownloads := m.torrentClient.GetActiveDownloads()
+	if clientJob, exists := activeDownloads[torrentID]; exists && clientJob.Torrent != nil {
+		infoHash := clientJob.Torrent.InfoHash().String()
+		if infoHash != "" {
+			download.InfoHash = infoHash
+			if err := m.db.Save(download).Error; err != nil {
+				log.Printf("Worker %d: Failed to save InfoHash to database: %v", workerID, err)
+			} else {
+				log.Printf("Worker %d: Saved InfoHash %s for download %s", workerID, infoHash, download.Game.Title)
+			}
+		}
+	}
 
 	log.Printf("Worker %d: Successfully started download: %s", workerID, download.Game.Title)
 }
@@ -522,22 +551,78 @@ func (m *Manager) updateGlobalStatus() {
 func (m *Manager) resumeDownloads() {
 	log.Println("Resuming incomplete downloads...")
 	
+	// Сначала получаем уже запущенные торренты из anacrolix/torrent клиента
+	existingTorrents := m.torrentClient.GetExistingTorrents()
+	log.Printf("Found %d existing torrents in torrent client", len(existingTorrents))
+	
+	// Получаем незавершенные загрузки из БД
 	var downloads []models.Download
 	m.db.Preload("Game").Where("status IN ?", []string{"downloading", "queued"}).Find(&downloads)
-
+	log.Printf("Found %d incomplete downloads in database", len(downloads))
+	
+	// Пытаемся сопоставить торренты из клиента с записями в БД по InfoHash
 	for _, download := range downloads {
-		download.Status = "queued"
-		m.db.Save(&download)
+		restored := false
+		
+		// Ищем соответствующий торрент по InfoHash
+		for _, existingTorrent := range existingTorrents {
+			if download.InfoHash == existingTorrent.InfoHash {
+				log.Printf("Restoring download for existing torrent: %s (InfoHash: %s)", 
+					download.Game.Title, download.InfoHash)
+				
+				// Восстанавливаем мониторинг для существующего торрента
+				torrentID, progressChan, err := m.torrentClient.RestoreDownloadFromTorrent(
+					existingTorrent.Torrent, download.ID.String())
+				
+				if err != nil {
+					log.Printf("Failed to restore download monitoring: %v", err)
+					continue
+				}
+				
+				// Создаем контекст для управления загрузкой
+				ctx, cancel := context.WithCancel(context.Background())
+				
+				// Создаем задачу загрузки
+				job := &DownloadJob{
+					Download:     &download,
+					TorrentID:    torrentID,
+					ProgressChan: progressChan,
+					ctx:          ctx,
+					cancel:       cancel,
+				}
+				
+				// Добавляем в активные загрузки
+				m.mu.Lock()
+				m.downloads[download.ID] = job
+				m.progressChans[torrentID] = progressChan
+				m.mu.Unlock()
+				
+				// Обновляем статус и запускаем мониторинг
+				download.Status = "downloading"
+				m.db.Save(&download)
+				
+				go m.monitorDownloadProgress(job)
+				restored = true
+				break
+			}
+		}
+		
+		// Если не удалось восстановить из существующих торрентов, добавляем в очередь для перезапуска
+		if !restored {
+			log.Printf("No existing torrent found for %s, adding to queue for restart", download.Game.Title)
+			download.Status = "queued"
+			m.db.Save(&download)
 
-		select {
-		case m.queue <- &download:
-			log.Printf("Resumed download: %s", download.Game.Title)
-		default:
-			log.Printf("Download queue is full during resume, skipping: %s", download.Game.Title)
+			select {
+			case m.queue <- &download:
+				log.Printf("Queued download for restart: %s", download.Game.Title)
+			default:
+				log.Printf("Download queue is full during resume, skipping: %s", download.Game.Title)
+			}
 		}
 	}
 	
-	log.Printf("Attempted to resume %d downloads", len(downloads))
+	log.Printf("Download resume process completed")
 }
 
 // GetActiveDownloads возвращает список активных загрузок

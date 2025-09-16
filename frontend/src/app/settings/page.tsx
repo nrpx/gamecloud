@@ -19,6 +19,7 @@ import { settingsApi, UserSettings } from '@/lib/api'
 import { AppHeader } from '@/components/ui/AppHeader'
 import { Icon } from '@/components/ui/Icon'
 import ThemeLanguageSettings from '@/components/ui/ThemeLanguageSettings'
+import { showSuccess, showError } from '@/lib/toast'
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
@@ -56,11 +57,11 @@ export default function SettingsPage() {
       setError(null)
       const updatedSettings = await settingsApi.updateSettings(settings)
       setSettings(updatedSettings)
-      alert('Настройки успешно сохранены!')
+      showSuccess('Настройки сохранены!', 'Настройки успешно сохранены!')
     } catch (error) {
       console.error('Ошибка сохранения настроек:', error)
       setError('Не удалось сохранить настройки')
-      alert('Ошибка сохранения настроек')
+      showError('Ошибка сохранения', 'Не удалось сохранить настройки')
     } finally {
       setIsSaving(false)
     }

@@ -34,7 +34,7 @@ func main() {
 	defer torrentClient.Close()
 
 	// Initialize WebSocket hub
-	wsHub := websocketPkg.NewHub()
+	wsHub := websocketPkg.NewHub(cfg.JWTSecret)
 	go wsHub.Run()
 
 	// Initialize download manager with torrent client
@@ -45,6 +45,10 @@ func main() {
 
 	// Setup API routes
 	router := gin.Default()
+	
+	// Настройка безопасных прокси для устранения предупреждений
+	router.SetTrustedProxies([]string{"127.0.0.1", "::1"}) // Доверяем только localhost
+	
 	api.SetupRoutes(router, db, downloadManager, cfg, wsHub)
 
 	// Start server

@@ -113,16 +113,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 </Button>
               </Link>
               
-              <Link href="/torrents">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  title="Торренты"
-                >
-                  <Icon name="download" size={24} />
-                </Button>
-              </Link>
-              
               <Link href="/stats">
                 <Button
                   variant="ghost"

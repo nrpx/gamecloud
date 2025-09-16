@@ -8,23 +8,38 @@ import (
 )
 
 type Game struct {
-	ID          uuid.UUID `json:"id" gorm:"type:uuid;primary_key"`
-	UserID      string    `json:"user_id" gorm:"not null;index"`
-	Title       string    `json:"title" gorm:"not null"`
-	Description string    `json:"description"`
-	Genre       string    `json:"genre"`
-	Developer   string    `json:"developer"`
-	Publisher   string    `json:"publisher"`
-	ReleaseDate *time.Time `json:"release_date"`
-	CoverURL    string    `json:"cover_url"`
-	Screenshots []string  `json:"screenshots" gorm:"type:json"`
-	Size        int64     `json:"size"` // Size in bytes
-	Status      string    `json:"status"` // available, downloading, not_available
-	FilePath    string    `json:"file_path"`
-	TorrentURL  string    `json:"torrent_url"`
-	ImageURL    string    `json:"image_url"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID               uuid.UUID  `json:"id" gorm:"type:uuid;primary_key"`
+	UserID           string     `json:"user_id" gorm:"not null;index"`
+	Title            string     `json:"title" gorm:"not null"`
+	Description      string     `json:"description"`
+	Genre            string     `json:"genre" gorm:"not null"`
+	Developer        string     `json:"developer"`
+	Publisher        string     `json:"publisher"`
+	ReleaseYear      *int       `json:"release_year"`
+	ReleaseDate      *time.Time `json:"release_date"`
+	
+	// SteamGridDB изображения
+	GridImageURL     string     `json:"grid_image_url"`     // 460x215 grid изображение
+	HeroImageURL     string     `json:"hero_image_url"`     // 1920x620 hero изображение 
+	LogoImageURL     string     `json:"logo_image_url"`     // прозрачный логотип
+	IconImageURL     string     `json:"icon_image_url"`     // иконка 32x32
+	SteamGridDBID    string     `json:"steamgriddb_id"`     // ID игры в SteamGridDB
+	
+	// Устаревшие поля для обратной совместимости
+	CoverURL         string     `json:"cover_url"`
+	ImageURL         string     `json:"image_url"`
+	Screenshots      []string   `json:"screenshots" gorm:"type:json"`
+	
+	// Торрент информация
+	TorrentURL       string     `json:"torrent_url"`
+	
+	// Файловая информация
+	Size             int64      `json:"size"` // Size in bytes
+	Status           string     `json:"status"` // available, downloading, not_available
+	FilePath         string     `json:"file_path"`
+	
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 func (g *Game) BeforeCreate(tx *gorm.DB) error {

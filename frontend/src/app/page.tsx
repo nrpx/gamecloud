@@ -20,9 +20,9 @@ import {
 import { AppHeader } from '@/components/ui/AppHeader'
 import { Icon } from '@/components/ui/Icon'
 import { useGamesLibraryData, useFetchGames } from '@/stores/gamesLibraryStore'
-import { useTorrentsData, useFetchDownloads } from '@/stores/torrentsStore'
 import { formatFileSize, formatSpeed } from '@/lib/api'
 import SignInForm from '@/components/SignInForm'
+import { showError } from '@/lib/toast'
 
 interface Stats {
   totalGames: number
@@ -40,9 +40,7 @@ export default function HomePage() {
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected'>('disconnected')
   
   const games = useGamesLibraryData()
-  const torrents = useTorrentsData()
   const fetchGames = useFetchGames()
-  const fetchDownloads = useFetchDownloads()
 
   // Long-poll для статистики
   const fetchStats = async () => {
@@ -64,6 +62,7 @@ export default function HomePage() {
     } catch (error) {
       console.error('Error fetching stats:', error)
       setConnectionStatus('disconnected')
+      showError('Ошибка соединения', 'Не удалось получить статистику. Проверьте подключение к серверу.')
     }
   }
 
@@ -72,12 +71,11 @@ export default function HomePage() {
     if (session?.user) {
       fetchStats()
       fetchGames()
-      fetchDownloads()
       
       const interval = setInterval(fetchStats, 5000)
       return () => clearInterval(interval)
     }
-  }, [session, fetchGames, fetchDownloads])
+  }, [session, fetchGames])
 
   if (status === 'loading') {
     return (
@@ -96,7 +94,7 @@ export default function HomePage() {
 
   // Берём последние игры с активными загрузками
   const recentGames = games?.slice(0, 6) || []
-  const activeTorrents = torrents?.filter(t => t.status === 'downloading' || t.status === 'completed') || []
+  const activeDownloads = games?.filter(game => game.download && (game.download.status === 'downloading' || game.download.status === 'completed')) || []
 
   return (
     <Box>
@@ -141,7 +139,7 @@ export default function HomePage() {
                   <Text fontSize="sm" color="fg.muted">Активных</Text>
                 </HStack>
                 <Text fontSize="2xl" fontWeight="bold" color="blue.500">
-                  {stats?.activeDownloads || activeTorrents.length}
+                  {stats?.activeDownloads || activeDownloads.length}
                 </Text>
               </VStack>
             </Box>
@@ -214,36 +212,36 @@ export default function HomePage() {
             <Box p={4} bg="bg.surface" borderRadius="lg" shadow="sm" border="1px" borderColor="border.muted">
               <HStack justify="space-between" mb={4}>
                 <Heading size="md">Активные загрузки</Heading>
-                <Link href="/torrents" passHref>
+                <Link href="/games" passHref>
                   <Button size="sm" variant="outline">
-                    Все торренты
+                    Все загрузки
                   </Button>
                 </Link>
               </HStack>
               
-              {activeTorrents.length > 0 ? (
+              {activeDownloads.length > 0 ? (
                 <VStack gap={3} align="stretch">
-                  {activeTorrents.slice(0, 6).map((torrent) => (
-                    <Box key={torrent.id} p={3} borderRadius="md" border="1px" borderColor="border.subtle">
+                  {activeDownloads.slice(0, 6).map((game) => (
+                    <Box key={game.id} p={3} borderRadius="md" border="1px" borderColor="border.subtle">
                       <HStack justify="space-between" mb={2}>
                         <Text fontWeight="medium" fontSize="sm" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
-                          {`Загрузка ${torrent.id}`}
+                          {game.title}
                         </Text>
                         <Badge 
                           size="sm" 
-                          colorScheme={torrent.status === 'completed' ? 'green' : 'blue'}
+                          colorScheme={game.download?.status === 'completed' ? 'green' : 'blue'}
                         >
-                          {torrent.status === 'completed' ? 'Завершено' : 'Загрузка'}
+                          {game.download?.status === 'completed' ? 'Завершено' : 'Загрузка'}
                         </Badge>
                       </HStack>
-                      <Progress.Root value={torrent.progress || 0} size="sm" colorPalette="blue">
+                      <Progress.Root value={game.download?.progress || 0} size="sm" colorPalette="blue">
                         <Progress.Track>
                           <Progress.Range />
                         </Progress.Track>
                       </Progress.Root>
                       <HStack justify="space-between" mt={1}>
                         <Text fontSize="xs" color="fg.muted">
-                          {(torrent.progress || 0).toFixed(1)}%
+                          {(game.download?.progress || 0).toFixed(1)}%
                         </Text>
                         <Text fontSize="xs" color="fg.muted">
                           0 KB/s

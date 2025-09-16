@@ -24,6 +24,7 @@ import {
   useStatsError, 
   useFetchStats 
 } from '@/stores/statsStore'
+import { showError } from '@/lib/toast'
 
 export default function ProfilePage() {
   const { data: session } = useSession()
@@ -41,6 +42,13 @@ export default function ProfilePage() {
       fetchStats()
     }
   }, [session, fetchStats])
+
+  // Отслеживаем ошибки статистики
+  useEffect(() => {
+    if (statsError) {
+      showError('Ошибка загрузки статистики', statsError)
+    }
+  }, [statsError])
 
   if (!session?.user) {
     return (

@@ -18,6 +18,15 @@
 
 ## Development Guidelines
 
+### Testing Requirements
+- **ВСЕГДА создавать и обновлять тесты** при добавлении нового функционала
+- **ВСЕГДА проверять изменения через тесты** перед коммитом
+- **react-hook-form компоненты** должны иметь тесты с реальной валидацией
+- **API функции** должны иметь тесты с мокированными запросами
+- **Store логика** должна быть покрыта unit-тестами
+- Использовать `yarn test` для запуска всех тестов
+- Исправлять failing тесты перед добавлением нового кода
+
 ### Package Management
 - **Always use `yarn` instead of `npm`**
 - Frontend dependencies: `cd frontend && yarn add <package>`

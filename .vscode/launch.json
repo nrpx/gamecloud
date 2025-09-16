@@ -2,6 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "type": "node",
+      "request": "launch",
+      "name": "MCP ChakraUI",
+      "runtimeExecutable": "/home/apelipas/.asdf/installs/nodejs/22.10.0/bin/node",
+      "runtimeArgs": ["npx", "mcp-server-chakraui", "start"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
       "name": "Debug Backend",
       "type": "node",
       "request": "launch",
